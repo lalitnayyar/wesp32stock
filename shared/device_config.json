@@ -1,0 +1,22 @@
+{
+  "$comment": "Lalit Stock Application - shared ESP32/simulator device configuration contract. Owner: Lalit Nayyar <consult@lalit.cloud>. Single source of truth for defaults and validation ranges; firmware header firmware/LalitStockFirmware/shared_contract.h is generated from this file by tools/gen_shared.py. Not financial advice.",
+  "version": 1,
+  "fields": {
+    "rotation_enabled":     { "type": "bool", "default": true },
+    "page_duration_s":      { "type": "int",  "default": 10,    "min": 1,    "max": 86400, "description": "Requested page duration (seconds). Effective value is clamped to the panel-safe minimum." },
+    "selected_page":        { "type": "int",  "default": 1,     "min": 1,    "max": 64 },
+    "reset_page_on_data":   { "type": "bool", "default": false },
+    "fetch_interval_s":     { "type": "int",  "default": 120,   "min": 30,   "max": 86400 },
+    "heartbeat_interval_s": { "type": "int",  "default": 60,    "min": 15,   "max": 3600 },
+    "ntp_interval_s":       { "type": "int",  "default": 3600,  "min": 300,  "max": 86400 },
+    "api_timeout_ms":       { "type": "int",  "default": 10000, "min": 1000, "max": 30000 },
+    "rows_per_page":        { "type": "int",  "default": 8,     "min": 4,    "max": 8 },
+    "show_summary_page":    { "type": "bool", "default": true },
+    "show_benchmarks_page": { "type": "bool", "default": true },
+    "orientation":          { "type": "enum", "default": "portrait", "values": ["portrait"] },
+    "panel_profile":        { "type": "enum", "default": "JD79667_GDEY029F51H", "values": ["JD79667_GDEY029F51H", "TEST_FAST_PANEL", "UNKNOWN"] },
+    "timezone":             { "type": "string", "default": "Asia/Dubai", "max_len": 40 },
+    "posix_tz":             { "type": "string", "default": "<+04>-4", "max_len": 40 },
+    "ntp_server":           { "type": "string", "default": "pool.ntp.org", "max_len": 64 }
+  }
+}

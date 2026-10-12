@@ -1,0 +1,66 @@
+# Lalit Stock Application - Docker Compose (local and Hostinger VPS).
+# Owner: Lalit Nayyar <consult@lalit.cloud>. Not financial advice. Use ./manage.sh to operate.
+name: lalitstock
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-lalitstock}
+      POSTGRES_USER: ${POSTGRES_USER:-lalitstock}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      APP_ENV: ${APP_ENV:-development}
+      APP_SECRET_KEY: ${APP_SECRET_KEY:?set APP_SECRET_KEY in .env}
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-lalitstock}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-lalitstock}
+      ADMIN_USERNAME: ${ADMIN_USERNAME:-admin}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
+      MARKET_PROVIDER: ${MARKET_PROVIDER:-yahoo}
+      SIMULATOR_ENABLED: ${SIMULATOR_ENABLED:-}
+      COOKIE_SECURE: ${COOKIE_SECURE:-true}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+    # Optional LAN port so an ESP32 on the local network can reach the API during development
+    # (plain HTTP - development only). Bound to 127.0.0.1 unless DEVICE_LAN_BIND=0.0.0.0.
+    ports:
+      - "${DEVICE_LAN_BIND:-127.0.0.1}:${DEVICE_LAN_PORT:-8000}:8000"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  web:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      - backend
+    environment:
+      SITE_ADDRESS: ${SITE_ADDRESS:-localhost}
+      ACME_EMAIL: ${ACME_EMAIL:-consult@lalit.cloud}
+    ports:
+      - "${HTTP_PORT:-80}:80"
+      - "${HTTPS_PORT:-443}:443"
+    volumes:
+      - caddy_data:/data
+      - caddy_config:/config
+
+volumes:
+  db_data:
+  caddy_data:
+  caddy_config:

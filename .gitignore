@@ -1,0 +1,22 @@
+build/
+*.bin
+*.elf
+*.map
+.vscode/
+
+# Lalit Stock Application
+.env
+backups/
+**/.venv/
+**/node_modules/
+frontend/dist/
+**/__pycache__/
+**/.pytest_cache/
+*.db
+firmware/test/.deps/
+logs/
+deploy/extra-ca/*.crt
+.playwright-mcp/
+
+# local tool settings
+.claude/settings.local.json

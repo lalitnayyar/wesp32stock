@@ -1,0 +1,59 @@
+{
+  "$comment": "Page-rotation state machine vectors. Times are milliseconds since boot. effective_ms is the effective (safe) page duration. Ops: init, tick, next, goto, pause, resume, set_count, data. Each step asserts page and whether a redraw is requested. 'error' asserts a rejected goto.",
+  "scenarios": [
+    {
+      "name": "three_pages_sequential_wrap",
+      "init": { "page_count": 3, "page": 1, "enabled": true, "effective_ms": 60000, "now": 0 },
+      "steps": [
+        { "op": "tick", "now": 59999,  "page": 1, "redraw": false },
+        { "op": "tick", "now": 60000,  "page": 2, "redraw": true },
+        { "op": "tick", "now": 120000, "page": 3, "redraw": true },
+        { "op": "tick", "now": 180000, "page": 1, "redraw": true }
+      ]
+    },
+    {
+      "name": "rotation_disabled_stays",
+      "init": { "page_count": 3, "page": 2, "enabled": false, "effective_ms": 60000, "now": 0 },
+      "steps": [
+        { "op": "tick", "now": 600000, "page": 2, "redraw": false }
+      ]
+    },
+    {
+      "name": "single_page_no_redraw",
+      "init": { "page_count": 1, "page": 1, "enabled": true, "effective_ms": 60000, "now": 0 },
+      "steps": [
+        { "op": "tick", "now": 60000,  "page": 1, "redraw": false },
+        { "op": "tick", "now": 600000, "page": 1, "redraw": false }
+      ]
+    },
+    {
+      "name": "manual_controls",
+      "init": { "page_count": 3, "page": 1, "enabled": true, "effective_ms": 60000, "now": 0 },
+      "steps": [
+        { "op": "next",   "now": 10000,  "page": 2, "redraw": true },
+        { "op": "tick",   "now": 60000,  "page": 2, "redraw": false },
+        { "op": "tick",   "now": 70000,  "page": 3, "redraw": true },
+        { "op": "goto",   "now": 75000,  "arg": 1, "page": 1, "redraw": true },
+        { "op": "goto",   "now": 76000,  "arg": 4, "page": 1, "redraw": false, "error": true },
+        { "op": "goto",   "now": 76500,  "arg": 0, "page": 1, "redraw": false, "error": true },
+        { "op": "pause",  "now": 77000,  "page": 1, "redraw": false },
+        { "op": "tick",   "now": 500000, "page": 1, "redraw": false },
+        { "op": "next",   "now": 510000, "page": 2, "redraw": true },
+        { "op": "resume", "now": 520000, "page": 2, "redraw": false },
+        { "op": "tick",   "now": 579999, "page": 2, "redraw": false },
+        { "op": "tick",   "now": 580000, "page": 3, "redraw": true }
+      ]
+    },
+    {
+      "name": "page_count_shrinks_and_data",
+      "init": { "page_count": 4, "page": 4, "enabled": true, "effective_ms": 60000, "now": 0 },
+      "steps": [
+        { "op": "set_count", "now": 1000, "arg": 2, "page": 1, "redraw": true },
+        { "op": "next",      "now": 2000, "page": 2, "redraw": true },
+        { "op": "data",      "now": 3000, "arg": false, "page": 2, "redraw": true },
+        { "op": "data",      "now": 4000, "arg": true,  "page": 1, "redraw": true },
+        { "op": "set_count", "now": 5000, "arg": 3, "page": 1, "redraw": false }
+      ]
+    }
+  ]
+}

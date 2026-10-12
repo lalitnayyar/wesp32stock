@@ -1,0 +1,65 @@
+{
+  "$comment": "Expected header/footer draw-ops for given device status. Op formats: [\"F\",x,y,w,h,color] filled rect, [\"R\",x,y,w,h,color] outline rect, [\"H\",x,y,w,color] horizontal line, [\"T\",x,y,size,color,text] text. Firmware (g++ host test) and simulator (vitest) must both reproduce these exactly.",
+  "age_cases": [
+    { "age_s": 0, "text": "0s" }, { "age_s": 59, "text": "59s" }, { "age_s": 60, "text": "1m" },
+    { "age_s": 3599, "text": "59m" }, { "age_s": 3600, "text": "1h" }, { "age_s": 172799, "text": "47h" },
+    { "age_s": 172800, "text": "2d" }
+  ],
+  "cases": [
+    {
+      "name": "online_delayed",
+      "status": { "datetime": "12 Oct 2026 14:05", "last_ok": "14:04", "wifi": true, "api": "OK", "market": "OPEN", "flag": "DELAYED", "page": 1, "pages": 3, "age_s": 75, "offline": false },
+      "ops": [
+        ["F", 0, 0, 168, 14, "R"],
+        ["T", 3, 3, 1, "W", "Lalit Stock Application"],
+        ["T", 3, 18, 1, "K", "12 Oct 2026 14:05"],
+        ["T", 3, 29, 1, "K", "Upd 14:04"],
+        ["T", 63, 29, 1, "K", "WiFi:OK"],
+        ["T", 117, 29, 1, "K", "API:OK"],
+        ["T", 3, 40, 1, "K", "Mkt:OPEN"],
+        ["F", 119, 38, 46, 11, "Y"],
+        ["T", 121, 40, 1, "K", "DELAYED"],
+        ["H", 0, 50, 168, "K"],
+        ["H", 0, 367, 168, "K"],
+        ["T", 3, 373, 1, "K", "PAGE 1/3"],
+        ["T", 129, 373, 1, "K", "Age 1m"]
+      ]
+    },
+    {
+      "name": "offline_no_time",
+      "status": { "datetime": null, "last_ok": null, "wifi": false, "api": "OFF", "market": "CLOSED", "flag": "CACHED", "page": 2, "pages": 2, "age_s": 7300, "offline": true },
+      "ops": [
+        ["F", 0, 0, 168, 14, "R"],
+        ["T", 3, 3, 1, "W", "Lalit Stock Application"],
+        ["T", 3, 18, 1, "R", "NO TIME SYNC"],
+        ["T", 3, 29, 1, "K", "Upd --:--"],
+        ["T", 63, 29, 1, "R", "WiFi:--"],
+        ["T", 117, 29, 1, "R", "API:OFF"],
+        ["T", 3, 40, 1, "K", "Mkt:CLOSED"],
+        ["F", 125, 38, 40, 11, "Y"],
+        ["T", 127, 40, 1, "K", "CACHED"],
+        ["H", 0, 50, 168, "K"],
+        ["H", 0, 367, 168, "K"],
+        ["T", 3, 373, 1, "K", "PAGE 2/2"],
+        ["T", 105, 373, 1, "R", "OFFLINE 2h"]
+      ]
+    },
+    {
+      "name": "no_data_yet",
+      "status": { "datetime": "01 Jan 2026 00:00", "last_ok": null, "wifi": true, "api": "ERR", "market": "--", "flag": "", "page": 1, "pages": 1, "age_s": null, "offline": false },
+      "ops": [
+        ["F", 0, 0, 168, 14, "R"],
+        ["T", 3, 3, 1, "W", "Lalit Stock Application"],
+        ["T", 3, 18, 1, "K", "01 Jan 2026 00:00"],
+        ["T", 3, 29, 1, "K", "Upd --:--"],
+        ["T", 63, 29, 1, "K", "WiFi:OK"],
+        ["T", 117, 29, 1, "R", "API:ERR"],
+        ["T", 3, 40, 1, "K", "Mkt:--"],
+        ["H", 0, 50, 168, "K"],
+        ["H", 0, 367, 168, "K"],
+        ["T", 3, 373, 1, "K", "PAGE 1/1"],
+        ["T", 129, 373, 1, "K", "Age --"]
+      ]
+    }
+  ]
+}

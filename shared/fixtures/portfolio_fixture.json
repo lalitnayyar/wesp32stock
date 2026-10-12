@@ -1,0 +1,31 @@
+{
+  "$comment": "FIXTURE DATA - not real market data. Input for tools/gen_shared.py, which renders dashboard_3page.json with the backend page builder. Shape matches backend analytics.portfolio_summary()/benchmarks().",
+  "generated_at": "2026-10-12T10:05:00Z",
+  "summary": {
+    "portfolio": { "id": 1, "name": "Fixture Portfolio", "base_currency": "USD" },
+    "holdings": [
+      { "ticker": "AAPL", "currency": "USD", "price": "189.2000", "day_change": "1.2500", "day_change_pct": "0.67", "market_value_base": "14190.00", "market_state": "OPEN", "stale": false, "quote_age_s": 40 },
+      { "ticker": "MSFT", "currency": "USD", "price": "415.1000", "day_change": "-2.3000", "day_change_pct": "-0.55", "market_value_base": "8302.00", "market_state": "OPEN", "stale": false, "quote_age_s": 40 },
+      { "ticker": "NVDA", "currency": "USD", "price": "121.4400", "day_change": "3.8400", "day_change_pct": "3.27", "market_value_base": "9715.20", "market_state": "OPEN", "stale": false, "quote_age_s": 40 },
+      { "ticker": "TSLA", "currency": "USD", "price": "238.7700", "day_change": "-5.1300", "day_change_pct": "-2.10", "market_value_base": "3581.55", "market_state": "OPEN", "stale": false, "quote_age_s": 40 },
+      { "ticker": "KO", "currency": "USD", "price": "63.1000", "day_change": "0.0000", "day_change_pct": "0.00", "market_value_base": "3786.00", "market_state": "OPEN", "stale": false, "quote_age_s": 40 },
+      { "ticker": "EMAAR.AE", "currency": "AED", "price": "8.4200", "day_change": "0.1100", "day_change_pct": "1.32", "market_value_base": "3439.10", "market_state": "CLOSED", "stale": true, "quote_age_s": 2400 },
+      { "ticker": "DIB.AE", "currency": "AED", "price": "6.0500", "day_change": "-0.0600", "day_change_pct": "-0.98", "market_value_base": "1976.81", "market_state": "CLOSED", "stale": false, "quote_age_s": 600 }
+    ],
+    "totals": {
+      "market_value": "44990.66", "invested": "39120.15", "unrealized_pl": "5870.51", "unrealized_pct": "15.01",
+      "day_pl": "355.42", "day_pct": "0.80", "active_holdings": 7
+    },
+    "best": { "ticker": "NVDA", "day_change_pct": "3.27" },
+    "worst": { "ticker": "TSLA", "day_change_pct": "-2.10" },
+    "freshness": { "oldest_quote_age_s": 2400, "stale_count": 1, "total": 7 }
+  },
+  "benchmarks": [
+    { "name": "S&P 500", "level": "5712.30", "day_change_pct": "0.41", "ret_1y": "21.30", "stale": false },
+    { "name": "NASDAQ Comp", "level": "18210.55", "day_change_pct": "0.55", "ret_1y": "24.75", "stale": false },
+    { "name": "DFM General", "level": "4512.80", "day_change_pct": "-0.22", "ret_1y": null, "stale": true }
+  ],
+  "display": { "rows_per_page": 8, "show_summary_page": true, "show_benchmarks_page": true },
+  "device": { "id": "SIM-001", "name": "Simulated E-Paper" },
+  "tz": "Asia/Dubai"
+}

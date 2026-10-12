@@ -1,0 +1,24 @@
+{
+  "$comment": "Panel refresh-safety profiles. min_safe_s = ceil(full_refresh_ms * (100 + safety_margin_pct) / 100 / 1000) + min_dwell_s. effective = max(requested, min_safe_s). Unknown profiles use fallback_s.",
+  "fallback_s": 180,
+  "profiles": {
+    "JD79667_GDEY029F51H": {
+      "label": "WeAct 2.9in 4C, GDEY029F51H / JD79667 (GxEPD2_290c_GDEY029F51H)",
+      "full_refresh_ms": 25000,
+      "safety_margin_pct": 20,
+      "min_dwell_s": 30,
+      "verified": true,
+      "evidence": "GxEPD2 1.6.9 src/epd4c/GxEPD2_290c_GDEY029F51H.h: full_refresh_time = 25000 ms (measured 21428295 us), partial_refresh_time = 25000 ms, hasFastPartialUpdate = false. Hardware Hello World confirmed on the owner's board.",
+      "simulation_only": false
+    },
+    "TEST_FAST_PANEL": {
+      "label": "Hypothetical fast panel (simulation/test only)",
+      "full_refresh_ms": 2000,
+      "safety_margin_pct": 20,
+      "min_dwell_s": 5,
+      "verified": false,
+      "evidence": "Synthetic profile used to demonstrate a 10 s request being accepted. Never select for real hardware.",
+      "simulation_only": true
+    }
+  }
+}

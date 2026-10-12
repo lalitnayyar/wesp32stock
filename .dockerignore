@@ -1,0 +1,11 @@
+**/.venv
+**/node_modules
+**/__pycache__
+**/.pytest_cache
+**/*.db
+frontend/dist
+backups
+.env
+.git
+firmware/test/.deps
+ESP32_EPaper_Test

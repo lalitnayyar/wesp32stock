@@ -1,0 +1,31 @@
+# Lalit Stock Application - Caddy reverse proxy. Owner: Lalit Nayyar. Not financial advice.
+# SITE_ADDRESS examples: "localhost" (local HTTPS with Caddy's internal CA),
+# "stock.example.com" (automatic Let's Encrypt on a VPS), ":80" (plain HTTP behind another proxy).
+{
+	email {$ACME_EMAIL:admin@example.com}
+}
+
+{$SITE_ADDRESS:localhost} {
+	encode gzip zstd
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Frame-Options "DENY"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "same-origin"
+		Content-Security-Policy "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self'; frame-ancestors 'none'"
+		-Server
+	}
+	@api path /api/*
+	handle @api {
+		reverse_proxy backend:8000
+	}
+	handle {
+		root * /srv
+		try_files {path} /index.html
+		file_server
+	}
+	log {
+		output stdout
+		format json
+	}
+}

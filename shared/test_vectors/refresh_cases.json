@@ -1,0 +1,23 @@
+{
+  "$comment": "Safe full-refresh validation vectors shared by backend (pytest), simulator (vitest) and firmware host tests (g++). requested is the raw user input; it is sanitized first (see validation_cases).",
+  "cases": [
+    { "name": "jd79667_10s_clamped",      "profile": "JD79667_GDEY029F51H", "requested": 10,  "effective": 60,  "min_safe": 60,  "refresh_gap": 30,  "clamped": true,  "fallback": false },
+    { "name": "jd79667_60s_accepted",     "profile": "JD79667_GDEY029F51H", "requested": 60,  "effective": 60,  "min_safe": 60,  "refresh_gap": 30,  "clamped": false, "fallback": false },
+    { "name": "jd79667_300s_accepted",    "profile": "JD79667_GDEY029F51H", "requested": 300, "effective": 300, "min_safe": 60,  "refresh_gap": 30,  "clamped": false, "fallback": false },
+    { "name": "fast_10s_accepted",        "profile": "TEST_FAST_PANEL",     "requested": 10,  "effective": 10,  "min_safe": 8,   "refresh_gap": 3,   "clamped": false, "fallback": false },
+    { "name": "fast_5s_clamped",          "profile": "TEST_FAST_PANEL",     "requested": 5,   "effective": 8,   "min_safe": 8,   "refresh_gap": 3,   "clamped": true,  "fallback": false },
+    { "name": "unknown_10s_fallback",     "profile": "UNKNOWN",             "requested": 10,  "effective": 180, "min_safe": 180, "refresh_gap": 180, "clamped": true,  "fallback": true },
+    { "name": "unlisted_profile_fallback","profile": "SOMETHING_ELSE",      "requested": 600, "effective": 600, "min_safe": 180, "refresh_gap": 180, "clamped": false, "fallback": true }
+  ],
+  "validation_cases": [
+    { "name": "zero",       "field": "page_duration_s", "input": 0,        "result": 1,     "ok": false },
+    { "name": "negative",   "field": "page_duration_s", "input": -5,       "result": 1,     "ok": false },
+    { "name": "oversized",  "field": "page_duration_s", "input": 999999,   "result": 86400, "ok": false },
+    { "name": "malformed",  "field": "page_duration_s", "input": "abc",    "result": 10,    "ok": false },
+    { "name": "float",      "field": "page_duration_s", "input": 12.7,     "result": 10,    "ok": false },
+    { "name": "valid",      "field": "page_duration_s", "input": 45,       "result": 45,    "ok": true },
+    { "name": "fetch_low",  "field": "fetch_interval_s","input": 5,        "result": 30,    "ok": false },
+    { "name": "rows_high",  "field": "rows_per_page",   "input": 50,       "result": 8,     "ok": false },
+    { "name": "page_zero",  "field": "selected_page",   "input": 0,        "result": 1,     "ok": false }
+  ]
+}
