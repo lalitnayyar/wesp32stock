@@ -63,8 +63,8 @@
       "full_refresh_ms": 25000,
       "safety_margin_pct": 20,
       "min_dwell_s": 30,
-      "verified": false,
-      "evidence": "GxEPD2 1.6.9 src/gdey3c/GxEPD2_420c_GDEY042Z98.h: full_refresh_time = 25000 ms (measured 22780001 us), colour refresh always full-window. Not yet confirmed on the owner's hardware.",
+      "verified": true,
+      "evidence": "GxEPD2 1.6.9 src/gdey3c/GxEPD2_420c_GDEY042Z98.h: full_refresh_time = 25000 ms (measured 22780001 us), colour refresh always full-window. Confirmed on the owner's hardware (ESP32-WROOM-32, uart2 wiring, firmware 1.1.0): setup screen and dashboard pages display correctly; fast full refresh measured 10028003 us, within the 25 s profile.",
       "simulation_only": false
     },
     "HX8717_GDEY0420F51": {

@@ -10,10 +10,10 @@ ESP32-WROOM-32 (board profile *ESP32 Dev Module*) + one of four WeAct Studio E-P
 |---|---|---|---|---|---|---|---|
 | 1 | **2.9" 4-colour** (default) | 168 × 384 portrait | black, white, red, yellow | GDEY029F51H / JD79667 | `GxEPD2_290c_GDEY029F51H` | `290_4c` | 60 s · **hardware-verified** |
 | 2 | **4.2" black/white** | 400 × 300 landscape | black, white | GDEY042T81 / SSD1683 | `GxEPD2_420_GDEY042T81` | `420_bw` | 32 s (≈1.2 s refresh) |
-| 3 | **4.2" black/white/red** | 400 × 300 landscape | black, white, red | GDEY042Z98 / SSD1683 | `GxEPD2_420c_GDEY042Z98` | `420_bwr` | 60 s (≈25 s refresh) |
+| 3 | **4.2" black/white/red** | 400 × 300 landscape | black, white, red | GDEY042Z98 / SSD1683 | `GxEPD2_420c_GDEY042Z98` | `420_bwr` | 60 s · **hardware-verified** (10 s measured) |
 | 4 | **4.2" 4-colour** | 400 × 300 landscape | black, white, red, yellow | GDEY0420F51 / HX8717 | `GxEPD2_420c_GDEY0420F51` | `420_4c` | 66 s (≈30 s refresh) |
 
-Only the 2.9" module is verified on hardware so far; the 4.2" timings come from the GxEPD2 1.6.9 driver sources (see [HARDWARE_VERIFICATION.md](HARDWARE_VERIFICATION.md)). Two wiring layouts are supported (3V3 only; BUSY → GPIO4, CS → GPIO5, SCL/SCK → GPIO18, SDA/MOSI → GPIO23 in both):
+The 2.9" 4-colour and the 4.2" black/white/red modules are verified on hardware; the other 4.2" timings come from the GxEPD2 1.6.9 driver sources (see [HARDWARE_VERIFICATION.md](HARDWARE_VERIFICATION.md)). Two wiring layouts are supported (3V3 only; BUSY → GPIO4, CS → GPIO5, SCL/SCK → GPIO18, SDA/MOSI → GPIO23 in both):
 
 - **standard** (default): RES → GPIO26, D/C → GPIO25.
 - **uart2**: RES → RX2 (GPIO16), D/C → TX2 (GPIO17), as in [../ESP32-Epaper-Wiring.png](../ESP32-Epaper-Wiring.png). Not for WROVER boards (PSRAM uses GPIO16/17).

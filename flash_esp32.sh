@@ -27,7 +27,7 @@ echo "Step 1/4 - Which E-Paper module is connected to the ESP32?"
 echo
 echo "  1. WeAct 2.9in 4-colour         168 x 384 portrait   GDEY029F51H / JD79667  [hardware-verified]"
 echo "  2. WeAct 4.2in black/white      400 x 300 landscape  GDEY042T81 / SSD1683   fast refresh, ~32 s pages"
-echo "  3. WeAct 4.2in black/white/red  400 x 300 landscape  GDEY042Z98 / SSD1683   ~60 s pages"
+echo "  3. WeAct 4.2in black/white/red  400 x 300 landscape  GDEY042Z98 / SSD1683   ~60 s pages  [hardware-verified]"
 echo "  4. WeAct 4.2in 4-colour         400 x 300 landscape  GDEY0420F51 / HX8717   ~66 s pages"
 echo
 echo "  The module type is printed on the flex cable or the WeAct product page."

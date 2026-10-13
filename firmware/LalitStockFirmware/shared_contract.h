@@ -44,7 +44,7 @@ struct PanelProfile { const char* name; const char* label; uint32_t full_refresh
 static const PanelProfile PANEL_PROFILES[] = {
   {"JD79667_GDEY029F51H", "WeAct 2.9in 4C, GDEY029F51H / JD79667 (GxEPD2_290c_GDEY029F51H)", 25000, 20, 30, true, false},
   {"SSD1683_GDEY042T81", "WeAct 4.2in B/W, GDEY042T81 / SSD1683 (GxEPD2_420_GDEY042T81)", 1200, 20, 30, false, false},
-  {"SSD1683_GDEY042Z98", "WeAct 4.2in B/W/R, GDEY042Z98 / SSD1683 (GxEPD2_420c_GDEY042Z98)", 25000, 20, 30, false, false},
+  {"SSD1683_GDEY042Z98", "WeAct 4.2in B/W/R, GDEY042Z98 / SSD1683 (GxEPD2_420c_GDEY042Z98)", 25000, 20, 30, true, false},
   {"HX8717_GDEY0420F51", "WeAct 4.2in 4C, GDEY0420F51 / HX8717 (GxEPD2_420c_GDEY0420F51)", 30000, 20, 30, false, false},
   {"TEST_FAST_PANEL", "Hypothetical fast panel (simulation/test only)", 2000, 20, 5, false, true},
 };
