@@ -4,6 +4,10 @@
 # LAN_ADDRESS: this machine's LAN IP (e.g. 192.168.1.50) so other devices can open https://<ip>/.
 {
 	email {$ACME_EMAIL:admin@example.com}
+	# Listen on the same ports the host publishes (HTTP_PORT/HTTPS_PORT in .env), so the
+	# HTTP->HTTPS redirect and generated URLs carry the right port (e.g. https://localhost:5175).
+	http_port {$HTTP_PORT:80}
+	https_port {$HTTPS_PORT:443}
 	# Browsers send no SNI when browsing by IP; without this Caddy cannot pick a certificate.
 	default_sni {$LAN_ADDRESS:127.0.0.1}
 }

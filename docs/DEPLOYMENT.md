@@ -37,7 +37,7 @@ Health: `GET /api/health` (liveness), `GET /api/health/ready` (database + schedu
    Caddy obtains a Let's Encrypt certificate automatically. In production the simulator is disabled unless `SIMULATOR_ENABLED=true`, and the backend refuses to start with a weak `APP_SECRET_KEY`.
 5. Sign in at `https://stock.example.com`, change the admin password (Settings → Security), and remove `ADMIN_PASSWORD` from `.env` if you like (it is only used to create the first admin).
 6. Schedule backups, for example with cron: `0 2 * * * cd /opt/lalitstock && ./manage.sh backup -y >> logs/cron.log 2>&1`, and copy `backups/` off the server.
-7. Updates: `./manage.sh update` (backup → `git pull --ff-only` → rebuild → migrate → health check).
+7. Updates: `./manage.sh update` (DB backup → pull from GitHub → rebuild → migrate → health check), or `./manage.sh pull` for code only. Pull fast-forwards `main` from `https://github.com/lalitnayyar/wesp32stock.git` (override with `REPO_URL` / `REPO_BRANCH` in `.env`). Local edits are stashed (restore with `git stash pop`). A folder that is not a git clone is connected to the repo after archiving its files to `backups/`. `.env`, backups and logs are never touched.
 
 No code changes are needed between local and VPS. Only `.env` differs.
 
@@ -53,7 +53,16 @@ See `.env.example`. Keep comments on their own lines (Compose may read inline te
 | `MARKET_PROVIDER` | `yahoo` or `fixture`. |
 | `SITE_ADDRESS` | Domain on a VPS. `localhost` locally. `:80` behind another TLS proxy. |
 | `LAN_ADDRESS` | IP that LAN devices use (`https://<ip>/`, Caddy internal CA). `auto` (default) = detected by `manage.sh` on each start/restart; or a fixed IP. |
+| `HTTP_PORT` / `HTTPS_PORT` | Host ports for the web UI (default 80/443). Caddy listens on the same numbers inside the container, so redirects and URLs carry the port, e.g. `https://localhost:5175`. Keep 80/443 on a public VPS for Let's Encrypt. |
 | `COOKIE_SECURE` | Keep `true` behind HTTPS. |
+
+## WSL2 (Docker inside Ubuntu on Windows)
+
+- From the Windows PC, open the URL `./manage.sh start` prints, for example `https://localhost:5175` (WSL forwards `localhost` to Windows).
+- In WSL's default **NAT** networking mode the Linux side has a private address (for example `172.22.x.x`) that other LAN devices cannot reach. `manage.sh` detects this, uses the **Windows** LAN IP for `LAN_ADDRESS=auto`, and prints the two ways to expose it:
+  - **Mirrored networking (recommended):** put `[wsl2]` / `networkingMode=mirrored` in `%UserProfile%\.wslconfig`, run `wsl --shutdown`, then `./manage.sh start`.
+  - **Port proxy:** the `netsh interface portproxy` and firewall commands printed by `./manage.sh open`. Re-run them after each WSL restart, because the VM address changes.
+- Run `./manage.sh diag` to see the detected networking mode and URLs.
 
 ## Scaling notes
 

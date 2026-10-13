@@ -144,7 +144,7 @@ cd wesp32stock
 
 - Sign in at **https://localhost** with `ADMIN_USERNAME` / `ADMIN_PASSWORD` from `.env`, then change the password under **Settings**.
 - `localhost` uses Caddy's internal CA. Trust it once with `docker compose exec web caddy trust`, or accept the browser warning.
-- Other devices on your network (phone, tablet, another PC) can use **https://&lt;this-machine's-ip&gt;/**. With `LAN_ADDRESS=auto` (the default), `./manage.sh start`/`restart` detects the IP every time it runs. You can also set a fixed IP in `.env`. `./manage.sh open` prints the LAN URL. Those devices warn about Caddy's internal CA certificate. If they cannot connect, allow inbound TCP 443 in the firewall. The Vite dev server is also reachable at `http://<ip>:5173`.
+- Other devices on your network (phone, tablet, another PC) can use **https://&lt;this-machine's-ip&gt;/**. With `LAN_ADDRESS=auto` (the default), `./manage.sh start`/`restart` detects the IP every time it runs. You can also set a fixed IP in `.env`. `./manage.sh open` prints the LAN URL. Those devices warn about Caddy's internal CA certificate. If they cannot connect, allow inbound TCP 443 in the firewall. With custom ports (`HTTP_PORT`/`HTTPS_PORT` in `.env`, for example 5174/5175), every URL carries the port: `https://localhost:5175`. On **WSL2**, see [WSL2 in DEPLOYMENT.md](docs/DEPLOYMENT.md#wsl2-docker-inside-ubuntu-on-windows); `manage.sh` detects NAT mode and prints the exact steps. The Vite dev server is also reachable at `http://<ip>:5173`.
 - Offline demo: set `MARKET_PROVIDER=fixture` in `.env`.
 - Windows: run `manage.sh` from Git Bash. If an antivirus or proxy inspects TLS (for example AVG Web Shield), put its root certificate in `deploy/extra-ca/`. TLS verification is never disabled.
 - VPS / production: see [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md). Set `SITE_ADDRESS` to your domain and Caddy obtains a Let's Encrypt certificate automatically.
@@ -282,7 +282,8 @@ Run `./manage.sh` with no arguments for the interactive menu, or use a subcomman
 | `secrets` | Generate missing secrets | `seed` | Load optional demo data |
 | `build` | Build images | `backup` | Timestamped DB backup |
 | `start` / `stop` / `restart` | Service lifecycle | `restore [F]` | Restore a backup (asks for confirmation) |
-| `status` | Service status | `update` | Back up, pull, rebuild, restart |
+| `status` | Service status | `update` | Back up DB, pull from GitHub, rebuild, migrate, restart |
+| `pull` | Pull latest code from GitHub only (no rebuild; keeps `.env`, backups, logs) | | |
 | `logs [svc]` | Follow logs | `open` | Show/open web and API URLs |
 | `diag` | Diagnostics (secrets redacted) | `test [backend\|frontend\|firmware\|all]` | Run test suites |
 | `reset` | Remove demo data / reset data (asks for confirmation) | `help` | Help and disclaimer |

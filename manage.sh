@@ -83,14 +83,37 @@ rand() { # rand LENGTH
 
 require_env() { [[ -f "$ENV_FILE" ]] || die "No .env file. Run: ./manage.sh env" 3; }
 
-site_url() { local s; s="$(env_get SITE_ADDRESS)"; s="${s%%,*}"; s="${s:-localhost}"; [[ "$s" == :* ]] && echo "http://localhost${s}" || echo "https://${s}"; }  # first of a comma-separated list
+port_suffix() { [[ -z "$1" || "$1" == "$2" ]] || printf ':%s' "$1"; }  # port_suffix PORT DEFAULT -> "" or ":PORT"
+https_suffix() { port_suffix "$(env_get HTTPS_PORT)" 443; }
 
-detect_lan_ip() {  # IPv4 of the interface that holds the default route (Linux, macOS, Git Bash on Windows)
+site_url() {  # first of a comma-separated SITE_ADDRESS, with HTTPS_PORT appended when it is not 443
+  local s; s="$(env_get SITE_ADDRESS)"; s="${s%%,*}"; s="${s:-localhost}"
+  if [[ "$s" == :* ]]; then echo "http://localhost${s}"          # plain-HTTP mode, e.g. ":80"
+  elif [[ "$s" == *:* ]]; then echo "https://${s}"               # explicit host:port
+  else echo "https://${s}$(https_suffix)"; fi
+}
+
+# WSL2 in its default NAT mode puts Linux behind a private VM address (172.16-31.x) that only this
+# Windows PC can reach; other LAN devices must use the Windows IP plus a port proxy (or mirrored mode).
+is_wsl() { grep -qi microsoft /proc/version 2>/dev/null; }
+wsl_nat() { is_wsl || return 1; [[ "$(wslinfo --networking-mode 2>/dev/null | tr -d '\r')" != mirrored ]]; }
+wsl_vm_ip() { ip -4 route get 1.1.1.1 2>/dev/null | awk '{for (i = 1; i < NF; i++) if ($i == "src") { print $(i + 1); exit }}'; }
+
+windows_lan_ip() {  # IPv4 of the Windows interface with the best default route (Git Bash or WSL interop)
+  command -v powershell.exe >/dev/null 2>&1 || return 0
+  powershell.exe -NoProfile -Command '$r = Get-NetRoute -DestinationPrefix 0.0.0.0/0 -ErrorAction SilentlyContinue | Sort-Object { $_.RouteMetric + (Get-NetIPInterface -InterfaceIndex $_.ifIndex -AddressFamily IPv4).InterfaceMetric } | Select-Object -First 1; if ($r) { (Get-NetIPAddress -InterfaceIndex $r.ifIndex -AddressFamily IPv4 | Select-Object -First 1).IPAddress }' 2>/dev/null | tr -d '\r'
+}
+
+detect_lan_ip() {  # IPv4 of the interface that holds the default route (Linux, macOS, Git Bash, WSL)
   local ip="" ifc
-  if command -v ip >/dev/null 2>&1; then
-    ip="$(ip -4 route get 1.1.1.1 2>/dev/null | awk '{for (i = 1; i < NF; i++) if ($i == "src") { print $(i + 1); exit }}')"
+  if wsl_nat; then
+    ip="$(windows_lan_ip)"   # the address LAN devices actually see; reached via the port proxy below
+  fi
+  if [[ -n "$ip" ]]; then :
+  elif command -v ip >/dev/null 2>&1; then
+    ip="$(wsl_vm_ip)"
   elif command -v powershell.exe >/dev/null 2>&1; then
-    ip="$(powershell.exe -NoProfile -Command '$r = Get-NetRoute -DestinationPrefix 0.0.0.0/0 -ErrorAction SilentlyContinue | Sort-Object { $_.RouteMetric + (Get-NetIPInterface -InterfaceIndex $_.ifIndex -AddressFamily IPv4).InterfaceMetric } | Select-Object -First 1; if ($r) { (Get-NetIPAddress -InterfaceIndex $r.ifIndex -AddressFamily IPv4 | Select-Object -First 1).IPAddress }' 2>/dev/null | tr -d '\r')"
+    ip="$(windows_lan_ip)"
   elif command -v route >/dev/null 2>&1 && command -v ipconfig >/dev/null 2>&1; then
     ifc="$(route -n get default 2>/dev/null | awk '/interface:/ {print $2}')"
     [[ -n "$ifc" ]] && ip="$(ipconfig getifaddr "$ifc" 2>/dev/null)"
@@ -109,7 +132,29 @@ lan_ip() {  # LAN_ADDRESS from .env; empty or "auto" = detect now (follows DHCP 
   fi
   printf '%s' "$LAN_IP"
 }
-lan_url() { local s; s="$(lan_ip)"; [[ "$s" != 127.0.0.1 ]] && echo "https://${s}"; return 0; }
+lan_url() { local s; s="$(lan_ip)"; [[ "$s" != 127.0.0.1 ]] && echo "https://${s}$(https_suffix)"; return 0; }
+
+wsl_hint() {  # how to reach a WSL2 (NAT mode) deployment from other LAN devices, e.g. a phone or the ESP32
+  wsl_nat || return 0
+  local win vm p ports=()
+  win="$(lan_ip)"; vm="$(wsl_vm_ip)"
+  for p in "$(env_get HTTPS_PORT)" "$(env_get HTTP_PORT)"; do ports+=("${p:-}"); done
+  [[ -z "${ports[0]}" ]] && ports[0]=443; [[ -z "${ports[1]}" ]] && ports[1]=80
+  [[ "$(env_get DEVICE_LAN_BIND)" == 0.0.0.0 ]] && ports+=("$(env_get DEVICE_LAN_PORT)")
+  echo
+  warn "WSL2 NAT networking detected (Linux VM address ${vm:-unknown}). This PC: $(site_url)"
+  echo "  Other LAN devices need either:"
+  echo "   a) mirrored networking (recommended): add to %UserProfile%\\.wslconfig"
+  echo "        [wsl2]"
+  echo "        networkingMode=mirrored"
+  echo "      then run 'wsl --shutdown' in Windows and './manage.sh start' again; or"
+  echo "   b) a port proxy (admin PowerShell; re-run after each WSL restart, the VM address changes):"
+  for p in "${ports[@]}"; do
+    [[ -n "$p" ]] || continue
+    echo "        netsh interface portproxy add v4tov4 listenaddress=$win listenport=$p connectaddress=$vm connectport=$p"
+  done
+  echo "        New-NetFirewallRule -DisplayName 'Lalit Stock' -Direction Inbound -Protocol TCP -LocalPort $(IFS=,; echo "${ports[*]}") -Action Allow"
+}
 
 # ----------------------------------------------------------------------------- 1
 cmd_check() {
@@ -177,7 +222,7 @@ cmd_secrets() {
 
 # ----------------------------------------------------------------------------- 4..9
 cmd_build()   { require_env; info "Building images"; compose build --pull; }
-cmd_start()   { require_env; info "Starting services"; compose up -d; cmd_status; echo; info "Web UI: $(site_url)   API docs: $(site_url)/api/docs"; [[ -z "$(lan_url)" ]] || info "LAN:    $(lan_url)"; }
+cmd_start()   { require_env; info "Starting services"; compose up -d; cmd_status; echo; info "Web UI: $(site_url)   API docs: $(site_url)/api/docs"; [[ -z "$(lan_url)" ]] || info "LAN:    $(lan_url)"; wsl_hint; }
 cmd_stop()    { require_env; info "Stopping services"; compose stop; }
 cmd_restart() { require_env; info "Restarting services"; compose up -d; compose restart; }  # up -d first applies a changed .env / LAN IP
 cmd_status()  { require_env; compose ps; }
@@ -271,19 +316,84 @@ cmd_restore() {
 }
 
 # ----------------------------------------------------------------------------- 15
-cmd_update() {
-  require_env
-  confirm "Back up, pull latest source (git, fast-forward only), rebuild and restart?" || exit 4
-  cmd_backup
-  if [[ -d .git ]]; then
-    git diff --quiet || die "Uncommitted local changes; commit or stash them first"
-    git pull --ff-only
-  else warn "Not a git checkout; skipping source update"; fi
-  compose pull db web 2>/dev/null || true
+# Source repository; override with REPO_URL / REPO_BRANCH in .env or the environment.
+REPO_URL_DEFAULT="https://github.com/lalitnayyar/wesp32stock.git"
+repo_url()    { local v; v="${REPO_URL:-$(env_get REPO_URL)}"; printf '%s' "${v:-$REPO_URL_DEFAULT}"; }
+repo_branch() { local v; v="${REPO_BRANCH:-$(env_get REPO_BRANCH)}"; printf '%s' "${v:-main}"; }
+# Runs in $ROOT (the script cd's there; no -C, which Git Bash would pass to git.exe unconverted).
+# safe.directory, for these calls only: WSL checkouts under /mnt/c belong to another uid and git refuses them.
+g() { git -c safe.directory='*' "$@"; }
+
+PULL_SELF_CHANGED=false
+cmd_pull() {  # fetch the latest code from GitHub and fast-forward; never touches .env, backups or logs
+  command -v git >/dev/null 2>&1 || die "git not found (Ubuntu/WSL: sudo apt install git)" 3
+  local url branch old new stamp
+  url="$(repo_url)"; branch="$(repo_branch)"; stamp="$(date +%Y%m%d_%H%M%S)"
+  info "Source: $url ($branch)"
+
+  if [[ ! -d "$ROOT/.git" ]]; then
+    warn "This folder is not a git checkout (copied or unzipped files)."
+    confirm "Connect it to $url and replace the code with the latest $branch? (.env, backups and logs are kept)" || exit 4
+    mkdir -p "$BACKUP_DIR"
+    tar -czf "$BACKUP_DIR/source_before_pull_$stamp.tar.gz" -C "$ROOT" --exclude=./backups --exclude=./logs \
+      --exclude=node_modules --exclude=.venv --exclude=__pycache__ --exclude=./.git . \
+      && info "Saved current files to backups/source_before_pull_$stamp.tar.gz"
+    g init -q
+    g remote add origin "$url"
+    g fetch --quiet origin "$branch" || die "Cannot fetch $url ($branch). Check the network or REPO_URL."
+    g checkout -q -f -B "$branch" "origin/$branch"
+    g branch -q --set-upstream-to="origin/$branch" "$branch"
+    PULL_SELF_CHANGED=true
+    info "Now tracking $url ($branch) at $(g log -1 --format='%h %s')"
+    return 0
+  fi
+
+  if g remote get-url origin >/dev/null 2>&1; then
+    [[ "$(g remote get-url origin)" == "$url" ]] || warn "origin is $(g remote get-url origin) (expected $url); using origin"
+  else
+    g remote add origin "$url"
+  fi
+  g fetch --quiet origin "$branch" || die "Cannot fetch origin/$branch. Check the network or REPO_URL."
+  old="$(g rev-parse HEAD)"
+  if [[ -z "$(g rev-list "HEAD..origin/$branch")" ]]; then info "Already up to date ($(g log -1 --format='%h %s'))"; return 0; fi
+
+  echo "Incoming changes:"; g log --oneline --no-decorate "HEAD..origin/$branch" | sed 's/^/  /'
+  if [[ -n "$(g status --porcelain --untracked-files=no)" ]]; then
+    warn "You have local edits to tracked files:"; g status --short --untracked-files=no | sed 's/^/  /'
+    confirm "Stash them (kept safely; restore later with 'git stash pop') and continue?" || exit 4
+    g stash push -q -m "manage.sh pull $stamp" && info "Local edits stashed as 'manage.sh pull $stamp'"
+  fi
+  [[ "$(g rev-parse --abbrev-ref HEAD)" == "$branch" ]] || g checkout -q "$branch"
+  g merge --ff-only -q "origin/$branch" \
+    || die "Local commits diverge from origin/$branch. Resolve manually (git status / git log), then re-run." 1
+  new="$(g rev-parse HEAD)"
+  info "Updated $(g log -1 --format=%h "$old") -> $(g log -1 --format='%h %s' "$new")"
+  g diff --stat "$old" "$new" | tail -n1 | sed 's/^/  /'
+  g diff --quiet "$old" "$new" -- manage.sh || PULL_SELF_CHANGED=true
+  if g diff --quiet "$old" "$new" -- backend frontend deploy shared docker-compose.yml; then
+    info "No container changes; a rebuild is not required."
+  else
+    info "Container sources changed; run './manage.sh update' (or build + restart) to apply."
+  fi
+}
+
+redeploy() {  # rebuild images and restart on the code that is checked out now
+  compose pull db 2>/dev/null || true
   compose build --pull
   compose up -d
   cmd_migrate
   cmd_health || warn "Health check reported problems; previous backup is in $BACKUP_DIR"
+  info "Web UI: $(site_url)"
+}
+
+cmd_update() {
+  require_env
+  confirm "Back up the database, pull the latest code from GitHub, rebuild and restart?" || exit 4
+  cmd_backup
+  cmd_pull
+  # bash reads scripts lazily: if this file was replaced, continue in the new version.
+  if $PULL_SELF_CHANGED; then info "manage.sh was updated; continuing with the new version"; exec bash "$ROOT/manage.sh" _redeploy -y; fi
+  redeploy
 }
 
 # ----------------------------------------------------------------------------- 16
@@ -292,6 +402,7 @@ cmd_open() {
   local url; url="$(site_url)"
   echo "Web UI:   $url"; echo "API docs: $url/api/docs"; echo "Health:   $url/api/health"
   [[ -z "$(lan_url)" ]] || echo "LAN:      $(lan_url)  (other devices will warn about the internal CA certificate)"
+  wsl_hint
   if command -v xdg-open >/dev/null 2>&1; then xdg-open "$url" >/dev/null 2>&1 || true
   elif command -v open >/dev/null 2>&1; then open "$url" || true
   elif command -v cmd.exe >/dev/null 2>&1; then cmd.exe /c start "" "$url" >/dev/null 2>&1 || true; fi
@@ -336,7 +447,8 @@ cmd_diag() {
   docker --version 2>/dev/null || true
   compose version 2>/dev/null || true
   [[ -d .git ]] && echo "git: $(git rev-parse --short HEAD 2>/dev/null) $(git status --porcelain | wc -l | tr -d ' ') uncommitted" || true
-  echo; info "LAN address"; echo "  LAN_ADDRESS=$(env_get LAN_ADDRESS) -> $(lan_ip)"
+  echo; info "LAN address"; echo "  LAN_ADDRESS=$(env_get LAN_ADDRESS) -> $(lan_ip)   Web UI: $(site_url)   LAN: $(lan_url)"
+  is_wsl && echo "  WSL networking: $(wslinfo --networking-mode 2>/dev/null | tr -d '\r' || echo 'unknown (assume nat)')"
   echo; info "Services"; compose ps 2>/dev/null || true
   echo; info "Disk"; df -h "$ROOT" | tail -n1
   echo; info "Backups"; ls -1t "$BACKUP_DIR" 2>/dev/null | head -n5 || echo "  none"
@@ -383,7 +495,8 @@ Usage: ./manage.sh [command] [-y]      (no command = interactive menu; -y = assu
   secrets          Generate missing secrets              seed         Load optional demo data
   build            Build images                          backup       Create timestamped DB backup
   start|stop       Start / stop services                 restore [F]  Restore a backup (confirms)
-  restart          Restart services                      update       Back up, pull, rebuild, restart
+  restart          Restart services                      update       Back up, pull from GitHub, rebuild, restart
+  pull             Pull latest code from GitHub (no rebuild; keeps .env, backups, logs)
   status           Service status                        open         Show/open web & API URLs
   logs [svc]       Follow logs                           test [backend|frontend|firmware|all]
   diag             Diagnostics (secrets redacted)        reset        Remove demo data / reset data (confirms)
@@ -416,6 +529,7 @@ ${B}Lalit Stock Application${N} - operations menu
   9) Follow logs                     19) Remove demo data / reset data
  10) Run health checks               20) Help / about / disclaimer, then exit
                                      21) Uninstall / remove application
+                                     22) Pull latest code from GitHub (no rebuild)
   q) Quit
 EOF
     local c; read -r -p "Select: " c || exit 0
@@ -423,7 +537,7 @@ EOF
       1) cmd_check || true ;; 2) cmd_env ;; 3) cmd_secrets ;; 4) cmd_build ;; 5) cmd_start ;; 6) cmd_stop ;;
       7) cmd_restart ;; 8) cmd_status ;; 9) cmd_logs || true ;; 10) cmd_health || true ;; 11) cmd_migrate ;;
       12) cmd_seed || true ;; 13) cmd_backup ;; 14) cmd_restore ;; 15) cmd_update ;; 16) cmd_open ;;
-      17) cmd_test || true ;; 18) cmd_diag ;; 19) (cmd_reset) || true ;; 20) cmd_help; exit 0 ;; 21) (cmd_uninstall) || true ;;
+      17) cmd_test || true ;; 18) cmd_diag ;; 19) (cmd_reset) || true ;; 20) cmd_help; exit 0 ;; 21) (cmd_uninstall) || true ;; 22) (cmd_pull) || true ;;
       q|Q) exit 0 ;; *) warn "Unknown choice: $c" ;;
     esac
   done
@@ -439,7 +553,7 @@ main() {
     "") menu ;;
     check) cmd_check ;; env) cmd_env ;; secrets) cmd_secrets "$@" ;; build) cmd_build ;; start|up) cmd_start ;;
     stop) cmd_stop ;; restart) cmd_restart ;; status|ps) cmd_status ;; logs) cmd_logs "$@" ;; health) cmd_health ;;
-    migrate) cmd_migrate ;; seed) cmd_seed ;; backup) cmd_backup ;; restore) cmd_restore "$@" ;; update) cmd_update ;;
+    migrate) cmd_migrate ;; seed) cmd_seed ;; backup) cmd_backup ;; restore) cmd_restore "$@" ;; update) cmd_update ;; pull) cmd_pull ;; _redeploy) redeploy ;;
     open|urls) cmd_open ;; test) cmd_test "$@" ;; diag) cmd_diag ;; reset) cmd_reset ;; uninstall|remove) cmd_uninstall ;; help|-h|--help|about) cmd_help ;;
     *) cmd_help; exit 2 ;;
   esac
