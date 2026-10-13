@@ -30,6 +30,7 @@ upload.bat COM3                                                        # display
 firmware/flash.sh [/dev/ttyUSB0]; ./upload.sh [port]                   # Linux/macOS equivalents (via tools/esp32_flash.sh)
 
 python tools/gen_shared.py [--check] [--font <glcdfont.c>]             # regenerate derived shared files
+./manage.sh firmware [filter]                                          # build web-flasher binaries -> firmware/dist (served at /firmware/)
 ```
 
 Backend tests use SQLite and `MARKET_PROVIDER=fixture` (see `backend/tests/conftest.py`); set `TEST_DATABASE_URL` to run against Postgres.

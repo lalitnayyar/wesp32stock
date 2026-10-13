@@ -14,7 +14,7 @@
     "noEmit": true,
     "baseUrl": ".",
     "paths": { "@shared/*": ["../shared/*"] },
-    "types": ["node"]
+    "types": ["node", "w3c-web-serial"]
   },
   "include": ["src", "vite.config.ts"]
 }

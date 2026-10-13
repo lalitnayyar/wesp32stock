@@ -51,6 +51,8 @@ compose() {
   fi
   # The shell value overrides .env, so LAN_ADDRESS=auto reaches Caddy as a real IP.
   lan_ip >/dev/null  # resolve once in this shell (cached in LAN_IP)
+  # The web container mounts firmware/dist read-only; create it as this user, not as root via Docker.
+  mkdir -p firmware/dist
   # SITE_ADDRESS set to the LAN IP itself would define the same Caddy site twice ("ambiguous site
   # definition"); the LAN_ADDRESS block already serves that IP, so give Caddy "localhost" instead.
   local site; site="$(env_get SITE_ADDRESS)"; site="${site:-localhost}"
@@ -514,6 +516,26 @@ EOF
 }
 
 # ----------------------------------------------------------------------------- 20
+# ----------------------------------------------------------------------------- 23
+cmd_firmware() {  # build every ESP32 variant (module x wiring x firmware/test) for the "Flash ESP32" page
+  mkdir -p "$ROOT/firmware/dist" "$ROOT/firmware/.build"
+  local mode="auto" args=()
+  for a in "$@"; do case "$a" in --docker) mode=docker ;; --local) mode=local ;; *) args+=("$a") ;; esac; done
+  if [[ "$mode" != docker ]] && command -v arduino-cli >/dev/null 2>&1; then
+    info "Building with the local arduino-cli (JOBS=${JOBS:-2})"
+    bash "$ROOT/tools/build_firmware.sh" "${args[@]+"${args[@]}"}"
+  else
+    [[ "$mode" == local ]] && die "arduino-cli is not installed; drop --local to use the Docker builder" 3
+    command -v docker >/dev/null 2>&1 || die "Docker is required for the firmware builder. Run: ./manage.sh check" 3
+    info "Building the firmware builder image (first time downloads the ESP32 toolchain, about 1 GB)"
+    docker build -q -f "$ROOT/deploy/firmware-builder/Dockerfile" -t lalitstock-fwbuilder "$ROOT/deploy" >/dev/null
+    info "Compiling all variants in the builder container (JOBS=${JOBS:-2}; a few minutes)"
+    docker run --rm -v "$ROOT:/repo" -w /repo --user "$(id -u):$(id -g)" -e HOME=/tmp -e JOBS="${JOBS:-2}" \
+      lalitstock-fwbuilder bash tools/build_firmware.sh "${args[@]+"${args[@]}"}"
+  fi
+  ok "Firmware ready in firmware/dist. Open the web admin -> Flash ESP32 (Chrome/Edge) to flash a board."
+}
+
 cmd_help() {
   cat <<EOF
 ${B}Lalit Stock Application - manage.sh${N}
@@ -532,6 +554,7 @@ Usage: ./manage.sh [command] [-y]      (no command = interactive menu; -y = assu
   logs [svc]       Follow logs                           test [backend|frontend|firmware|all]
   diag             Diagnostics (secrets redacted)        reset        Remove demo data / reset data (confirms)
   uninstall        Remove containers / images / data (levels, confirms)
+  firmware [f]     Build ESP32 firmware files for the web flasher (Flash ESP32 page); f filters, e.g. 420_bwr
   help             This help
 
 Exit codes: 0 ok, 1 failure, 2 usage, 3 missing prerequisite, 4 aborted.
@@ -561,6 +584,7 @@ ${B}Lalit Stock Application${N} - operations menu
  10) Run health checks               20) Help / about / disclaimer, then exit
                                      21) Uninstall / remove application
                                      22) Pull latest code from GitHub (no rebuild)
+                                     23) Build ESP32 firmware for the web flasher
   q) Quit
 EOF
     local c; read -r -p "Select: " c || exit 0
@@ -568,7 +592,7 @@ EOF
       1) cmd_check || true ;; 2) cmd_env ;; 3) cmd_secrets ;; 4) cmd_build ;; 5) cmd_start ;; 6) cmd_stop ;;
       7) cmd_restart ;; 8) cmd_status ;; 9) cmd_logs || true ;; 10) cmd_health || true ;; 11) cmd_migrate ;;
       12) cmd_seed || true ;; 13) cmd_backup ;; 14) cmd_restore ;; 15) cmd_update ;; 16) cmd_open ;;
-      17) cmd_test || true ;; 18) cmd_diag ;; 19) (cmd_reset) || true ;; 20) cmd_help; exit 0 ;; 21) (cmd_uninstall) || true ;; 22) (cmd_pull) || true ;;
+      17) cmd_test || true ;; 18) cmd_diag ;; 19) (cmd_reset) || true ;; 20) cmd_help; exit 0 ;; 21) (cmd_uninstall) || true ;; 22) (cmd_pull) || true ;; 23) (cmd_firmware) || true ;;
       q|Q) exit 0 ;; *) warn "Unknown choice: $c" ;;
     esac
   done
@@ -585,6 +609,7 @@ main() {
     check) cmd_check ;; env) cmd_env ;; secrets) cmd_secrets "$@" ;; build) cmd_build ;; start|up) cmd_start ;;
     stop) cmd_stop ;; restart) cmd_restart ;; status|ps) cmd_status ;; logs) cmd_logs "$@" ;; health) cmd_health ;;
     migrate) cmd_migrate ;; seed) cmd_seed ;; backup) cmd_backup ;; restore) cmd_restore "$@" ;; update) cmd_update ;; pull) cmd_pull ;; _redeploy) redeploy ;;
+    firmware|fw) cmd_firmware "$@" ;;
     open|urls) cmd_open ;; test) cmd_test "$@" ;; diag) cmd_diag ;; reset) cmd_reset ;; uninstall|remove) cmd_uninstall ;; help|-h|--help|about) cmd_help ;;
     *) cmd_help; exit 2 ;;
   esac

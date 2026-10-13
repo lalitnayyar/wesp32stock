@@ -22,7 +22,9 @@ The wiring is compiled in with `-DLS_WIRING=LS_WIRING_STANDARD|LS_WIRING_UART2` 
 
 ## Build and flash
 
-**Interactive:** `flash_esp32.bat` (Windows) or `./flash_esp32.sh` (Linux/macOS) asks for the module (1-4), firmware or display test, and the serial port (detected ports are listed), shows a summary, and asks before flashing. Five invalid answers or closed input cancel without flashing.
+**From the website (no Arduino tools on your PC):** web admin → **Flash ESP32** in desktop Chrome/Edge. Choose module, wiring and firmware or display test, click **Connect & flash**, pick the port. It verifies SHA-256 checksums, writes the four parts at their offsets (NVS settings kept unless *Erase all settings* is ticked), resets the board and shows the boot log with the device ID, the setup Wi-Fi and a panel-refresh check. The server needs the binaries once: `./manage.sh firmware` (local arduino-cli, or a Docker builder with the pinned toolchain), which writes `firmware/dist/` + `manifest.json`, served by Caddy at `/firmware/`.
+
+**Interactive script on your PC:** `flash_esp32.bat` (Windows) or `./flash_esp32.sh` (Linux/macOS) asks for the module (1-4), firmware or display test, and the serial port (detected ports are listed), shows a summary, and asks before flashing. Five invalid answers or closed input cancel without flashing.
 
 **Direct:**
 

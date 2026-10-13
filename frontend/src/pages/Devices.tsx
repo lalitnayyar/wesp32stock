@@ -1,4 +1,5 @@
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { ago, del, get, post, put } from "../api";
 import EPaperCanvas, { ColorLegend } from "../components/EPaperCanvas";
 import { ErrorBox, Field, Modal, Notice, useAction, useLoad } from "../components/ui";
@@ -13,8 +14,8 @@ export function ModuleSelect({ value, onChange }: { value: string; onChange: (v:
 }
 import { CreateKeyForm, ShowKeyOnce } from "./ApiKeys";
 
-function DeviceForm({ initial, portfolios, onDone }: any) {
-  const [f, setF] = useState<any>(initial ?? { device_uid: "", name: "", portfolio_id: "", display_config: { rows_per_page: 8, show_summary_page: true, show_benchmarks_page: true, page_order: ["summary", "holdings", "benchmarks"], sort: "value", panel_profile: MODULES[0].profile } });
+function DeviceForm({ initial, prefill, portfolios, onDone }: any) {
+  const [f, setF] = useState<any>(initial ?? { device_uid: prefill?.device_uid ?? "", name: "", portfolio_id: "", display_config: { rows_per_page: 8, show_summary_page: true, show_benchmarks_page: true, page_order: ["summary", "holdings", "benchmarks"], sort: "value", panel_profile: prefill?.panel_profile ?? MODULES[0].profile } });
   const act = useAction();
   const dc = f.display_config;
   const setDc = (k: string, v: any) => setF({ ...f, display_config: { ...dc, [k]: v } });
@@ -88,6 +89,16 @@ export default function DevicesPage() {
   const [modal, setModal] = useState<any>(null);
   const [shownKey, setShownKey] = useState<any>(null);
   const act = useAction();
+  const [params, setParams] = useSearchParams();
+  // Arriving from "Flash ESP32" -> "Register LS-xxxxxx with this module": open the form pre-filled.
+  useEffect(() => {
+    const uid = params.get("register");
+    if (uid) {
+      const mod = params.get("module");
+      setModal({ edit: {}, prefill: { device_uid: uid, panel_profile: MODULES.some((m) => m.profile === mod) ? mod : undefined } });
+      setParams({}, { replace: true });
+    }
+  }, [params, setParams]);
   if (error) return <ErrorBox error={error} />;
   if (!data) return <div>Loading…</div>;
   const [devices, pfs] = data;
@@ -135,7 +146,7 @@ export default function DevicesPage() {
       </div>
       {devices.length === 0 && <p className="text-sm text-stone-500">No devices registered.</p>}
       {modal?.edit && <Modal title={modal.edit.id ? `Configure ${modal.edit.name}` : "Register device"} onClose={() => setModal(null)}>
-        <DeviceForm initial={modal.edit.id ? modal.edit : undefined} portfolios={pfs} onDone={() => { setModal(null); reload(); }} /></Modal>}
+        <DeviceForm initial={modal.edit.id ? modal.edit : undefined} prefill={modal.prefill} portfolios={pfs} onDone={() => { setModal(null); reload(); }} /></Modal>}
       {modal?.preview && <Modal wide title={`Display preview: ${modal.preview.name}`} onClose={() => setModal(null)}><Preview device={modal.preview} /></Modal>}
       {modal?.key && <Modal title={`API key for ${modal.key.name}`} onClose={() => setModal(null)}>
         <CreateKeyForm devices={devices} fixedDevice={modal.key.id} onCreated={(r) => { setModal(null); setShownKey(r); reload(); }} /></Modal>}

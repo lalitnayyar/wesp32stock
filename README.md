@@ -45,6 +45,7 @@
 - **Multi-market:** US, UAE (DFM `.AE`, ADX) and other Yahoo-covered exchanges, with FX conversion and benchmark comparison.
 - **Optional AI insights:** OpenAI, DeepSeek or a local Ollama model explains the backend-calculated figures. The AI never sees raw credentials and never computes numbers itself.
 - **Your portfolio in Telegram:** ask a private bot for `/summary`, `/holdings`, `/movers` or an AI insight from your phone. It works behind a home router: no domain or port forwarding needed.
+- **Flash from the browser:** the **Flash ESP32** page writes the firmware for your module and wiring straight from Chrome or Edge over USB. No Arduino tools needed on that computer.
 - **Shareable insights:** export any AI insight as a Markdown file, or send it to your Telegram chat with one click.
 - **Testable without hardware:** a pixel-exact browser simulator of the E-Paper device is built in.
 
@@ -204,6 +205,7 @@ cd wesp32stock
 | **E-Paper Simulator** | A browser replica of the device for testing (see below). Pick any of the four **E-Paper modules** at the top; the display, colours and refresh timing switch immediately. |
 | **API Management** | Create, rotate, revoke and expire device API keys, and view the per-request access log. |
 | **AI Settings** | Add OpenAI / DeepSeek / Ollama providers, choose a model and run **Test Connection**. |
+| **Flash ESP32** | Flash a USB-connected ESP32 from the browser (Chrome/Edge, Web Serial): pick the E-Paper module, wiring and firmware or display test, watch progress and the boot log (device ID, setup Wi-Fi, panel check), then **Register** the device in one click. |
 | **Settings** | Timezone, quote refresh interval, timeouts, retries, backoff, closed-market polling, stale threshold, heartbeat timeout, device rate limit, the admin password and the **Telegram bot** (token, allowed chats, default portfolio, status, test). |
 | **About** | Version, owner, environment, link to the OpenAPI docs, and the disclaimer. |
 
@@ -346,7 +348,19 @@ All four modules have the same 8-pin header. Two wiring layouts are supported; p
 
 The TX2/RX2 layout keeps every wire on the left header of a classic ESP32-WROOM-32 DevKit (USB at the top: D4 → RX2 → TX2 → D5). Do not use it on WROVER boards, where GPIO16/17 belong to the PSRAM. If the firmware and the wiring disagree, the panel stays blank and the boot log shows a refresh that "finishes" in a few milliseconds instead of 10-30 s; the boot log prints `[hw] panel ..., wiring ...` so you can check.
 
-**Easiest: the flashing wizard.** Plug in the ESP32 and run `flash_esp32.bat` (Windows, double-click or from a prompt) or `./flash_esp32.sh` (Linux/macOS). It asks four questions and shows a summary before anything is written:
+**Easiest: flash from the website.** Open **Flash ESP32** in the web admin (between Settings and About) in desktop Chrome or Edge, plug the ESP32 into that computer and:
+
+1. choose the **E-Paper module** (1-4) and the **wiring** (Standard, or TX2/RX2 as in `ESP32-Epaper-Wiring.png`);
+2. choose **Lalit Stock firmware** or **Display test**;
+3. click **Connect & flash** and pick the serial port in the browser dialog.
+
+The page downloads the four flash parts, checks their SHA-256 against the manifest, writes them at 0x1000 / 0x8000 / 0xE000 / 0x10000 (saved Wi-Fi and API settings at 0x9000 are kept unless you tick *Erase all settings*), resets the board and shows its boot log: firmware and panel, **device ID**, setup Wi-Fi name and password, and whether the panel refresh took a real 10-30 s (a refresh of a few milliseconds means the wiring option is wrong). **Register LS-… with this module** opens the Register form pre-filled.
+
+The firmware files are built once on the server with `./manage.sh firmware` (menu 23): it compiles all 16 variants (4 modules × 2 wirings × firmware/test) into `firmware/dist`, which Caddy serves at `/firmware/`. Without arduino-cli on the server it uses a Docker builder image (first run downloads the ESP32 toolchain, about 1 GB). Run it again after `./manage.sh update` when the firmware changed. Web Serial needs HTTPS or `http://localhost`; Firefox and Safari do not support it.
+
+<p align="center"><img src="docs/screenshots/flash-esp32.png" alt="Flash ESP32 page" width="80%"></p>
+
+**Or with the flashing wizard on your PC.** Plug in the ESP32 and run `flash_esp32.bat` (Windows, double-click or from a prompt) or `./flash_esp32.sh` (Linux/macOS). It asks four questions and shows a summary before anything is written:
 
 ```text
 Step 1/4 - Which E-Paper module is connected to the ESP32?
@@ -466,7 +480,7 @@ Run `./manage.sh` with no arguments for the interactive menu, or use a subcomman
 | `logs [svc]` | Follow logs | `open` | Show/open web and API URLs |
 | `diag` | Diagnostics (secrets redacted) | `test [backend\|frontend\|firmware\|all]` | Run test suites |
 | `reset` | Remove demo data / reset data (asks for confirmation) | `help` | Help and disclaimer |
-| `uninstall` | Remove the application (levels below) | | |
+| `uninstall` | Remove the application (levels below) | `firmware [filter]` | Build the ESP32 firmware files for the **Flash ESP32** page (local arduino-cli or Docker builder; `--docker` forces Docker, `JOBS=n`) |
 
 **Uninstall** (`./manage.sh uninstall`, menu option 21) offers three levels. Source code, `.env` and `backups/` are always kept:
 
@@ -498,7 +512,9 @@ The Python, TypeScript and C++ implementations of the device rules all run again
 backend/            FastAPI app, services (ledger, market data, dashboard builder, AI), Alembic, tests
 frontend/           React admin UI and E-Paper simulator (src/sim)
 firmware/           ESP32 firmware (LalitStockFirmware/), host tests, flash.bat / flash.sh [port] [build]
-flash_esp32.bat/.sh Interactive flashing wizard: choose the E-Paper module, firmware or display test, and port
+flash_esp32.bat/.sh Interactive flashing wizard: choose the E-Paper module, wiring, firmware or display test, and port
+tools/build_firmware.sh Builds all firmware variants + manifest for the web flasher (firmware/dist, git-ignored)
+deploy/firmware-builder/ Docker image with the pinned ESP32 toolchain for ./manage.sh firmware
 shared/             Device contract: config schema, panel profiles (+ palettes), layouts (168x384, 400x300), fixtures, test vectors
 deploy/             Caddyfile, extra-ca/ for TLS-inspecting proxies
 docs/               Deployment, API, ESP32 setup, render contract, simulator, backup, troubleshooting, screenshots

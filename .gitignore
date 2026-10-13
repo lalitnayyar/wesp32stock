@@ -20,3 +20,7 @@ deploy/extra-ca/*.crt
 
 # local tool settings
 .claude/settings.local.json
+
+# Web flasher build output (./manage.sh firmware)
+firmware/dist/
+firmware/.build/

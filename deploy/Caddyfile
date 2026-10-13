@@ -26,6 +26,12 @@
 	handle @api {
 		reverse_proxy backend:8000
 	}
+	# ESP32 firmware for the "Flash ESP32" page, built by ./manage.sh firmware into firmware/dist.
+	handle_path /firmware/* {
+		root * /firmware
+		header Cache-Control "no-cache"
+		file_server
+	}
 	handle {
 		root * /srv
 		try_files {path} /index.html

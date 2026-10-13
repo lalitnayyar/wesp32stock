@@ -64,6 +64,8 @@ services:
     volumes:
       - caddy_data:/data
       - caddy_config:/config
+      # Web flasher binaries (./manage.sh firmware); read-only, served at /firmware/
+      - ./firmware/dist:/firmware:ro
 
 volumes:
   db_data:

@@ -12,6 +12,7 @@ import SettingsPage from "./pages/Settings";
 import SimulatorPage from "./pages/Simulator";
 import StocksPage from "./pages/Stocks";
 import AboutPage from "./pages/About";
+import FlashPage from "./pages/Flash";
 
 export interface About {
   application: string;
@@ -62,6 +63,7 @@ const NAV: [string, string][] = [
   ["/api-keys", "API Management"],
   ["/ai", "AI Settings"],
   ["/settings", "Settings"],
+  ["/flash", "Flash ESP32"],
   ["/about", "About"],
 ];
 
@@ -134,6 +136,7 @@ export default function App() {
             <Route path="/api-keys" element={<ApiKeysPage />} />
             <Route path="/ai" element={<AIPage />} />
             <Route path="/settings" element={<SettingsPage />} />
+            <Route path="/flash" element={<FlashPage />} />
             <Route path="/about" element={<AboutPage about={about} />} />
             <Route path="*" element={<Navigate to="/" />} />
           </Routes>
