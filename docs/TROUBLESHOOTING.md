@@ -22,8 +22,11 @@
 | Upload stuck at `Connecting...` | Hold BOOT until the upload starts. Close the serial monitor. |
 | `Sketch too big` | Use `PartitionScheme=min_spiffs` (`firmware\flash.bat` does this). |
 | Blank screen | Wiring, 3V3, and the 4C driver. Run `upload.bat` (Hello World) first. |
-| `API:ERR` + "API key rejected" | The key is revoked/expired, lacks a scope, or isn't bound to a registered device. |
+| `API:ERR` + "API key rejected" | The key is revoked/expired, lacks a scope, or isn't bound to a registered device. Create keys from the device's row in **E-Paper Devices**, which binds them automatically. |
 | `API:OFF` | Wi-Fi is down or the server is unreachable. Check the URL and DNS. HTTPS needs a valid certificate (or a custom root CA). |
+| Wi-Fi OK, `API OFF`, fetches `0/0`, NTP not synced | Still in setup mode: Wi-Fi, API URL, API key and admin password must all be saved before the network task starts. |
+| `connection failed: connection refused` | Server port not reachable: set `DEVICE_LAN_BIND=0.0.0.0` and restart; on WSL2 mirrored mode add the Hyper-V firewall rule (see the README). **Test API checks the saved settings**: Save, then test. |
+| LAN API URL | `http://<pc-ip>:<DEVICE_LAN_PORT>` (e.g. `http://192.168.68.135:8174`), with no path. The base URL returns 404 in a browser by design. `/api/health` returns ok. |
 | `NO TIME SYNC` in the header | NTP is blocked. Check the NTP server setting and outbound UDP 123. |
 | Pages change every 60 s although 10 s was requested | Expected: the effective hardware-safe duration (see the admin page reason). |
 | Manual "Next page" appears later | It is queued behind the 30 s refresh guard or an ongoing ~21 s refresh. |

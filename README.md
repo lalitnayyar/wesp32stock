@@ -25,11 +25,12 @@
 6. [User guide: web administration](#user-guide-web-administration)
 7. [Step-by-step: configure a test client](#step-by-step-configure-a-test-client)
 8. [E-Paper pagination and refresh safety](#e-paper-pagination-and-refresh-safety)
-9. [Operations with `manage.sh`](#operations-with-managesh)
-10. [Development and tests](#development-and-tests)
-11. [Repository layout](#repository-layout)
-12. [Documentation index](#documentation-index)
-13. [Support and contact](#support-and-contact)
+9. [Troubleshooting](#troubleshooting)
+10. [Operations with `manage.sh`](#operations-with-managesh)
+11. [Development and tests](#development-and-tests)
+12. [Repository layout](#repository-layout)
+13. [Documentation index](#documentation-index)
+14. [Support and contact](#support-and-contact)
 
 ---
 
@@ -257,7 +258,23 @@ Full API reference: [docs/API.md](docs/API.md) and the live OpenAPI UI at `/api/
    - The device should show **online** in **E-Paper Devices** within one heartbeat interval.
 7. **Recovery (BOOT button, GPIO0):** hold for **5 s** to return to the setup portal with settings kept. Hold for **15 s** to factory reset.
 
-**LAN-only development without a domain:** set `DEVICE_LAN_BIND=0.0.0.0` in `.env` and use `http://<pc-ip>:8000` as the API URL. The device labels it insecure. Use this only on trusted networks.
+#### Connecting the ESP32 over your home network (no domain): worked example
+
+This is the configuration verified on a Windows PC running the stack in WSL2 (PC `192.168.68.135`, ESP32 `192.168.68.105`, web ports 5174/5175, device port 8174):
+
+| Where | Setting | Value |
+|---|---|---|
+| Server `.env` | `HTTP_PORT` / `HTTPS_PORT` | `5174` / `5175` (any free ports; the web UI becomes `https://<pc-ip>:5175`) |
+| Server `.env` | `DEVICE_LAN_BIND` / `DEVICE_LAN_PORT` | `0.0.0.0` / `8174`, then `./manage.sh start` |
+| Web UI → E-Paper Devices | Register device | Device ID from the ESP32 setup screen, e.g. `LS-546534` (`LS-` + last 3 bytes of the Wi-Fi MAC). Assign a portfolio. |
+| Web UI → E-Paper Devices | **New API key** on that device's row | Creates a key **bound to the device**. Copy it; it is shown once. |
+| ESP32 admin page | API URL | `http://192.168.68.135:8174`: **http**, the PC's LAN IP, the device port, **no trailing path** |
+| ESP32 admin page | API key | The bound key. Click **Save first**, then **Test API**. |
+| Windows (WSL2 mirrored mode only) | Inbound firewall | Admin PowerShell: `New-NetFirewallHyperVRule -Name LalitStock -DisplayName 'Lalit Stock' -Direction Inbound -VMCreatorId '{40E0AC32-46A5-438A-A0B2-2B479E8F2E90}' -Protocol TCP -LocalPorts 8174,5175,5174 -Action Allow` |
+
+When it works, the device status shows **API `OK (INSECURE HTTP)`**, the fetch count increases and the NTP time is set, and the device shows **online** in E-Paper Devices. The device port is plain HTTP, so use it only on a trusted network. For HTTPS, use `https://<your-domain>` on a VPS, or paste Caddy's root CA into the device's *custom root CA* field.
+
+`http://<pc-ip>:8174/` itself answers `{"error":{"status":404,...}}` in a browser. That is expected: it is the API base. `http://<pc-ip>:8174/api/health` returns `{"status":"ok"}`.
 
 Full guide: [docs/ESP32_SETUP.md](docs/ESP32_SETUP.md) · wiring reference: [ESP32_WeAct_2.9_EPaper.md](ESP32_WeAct_2.9_EPaper.md)
 
@@ -270,6 +287,30 @@ The four-colour panel is a full-page display, so the device rotates **pages**. I
 - The **requested** default duration is **10 s**. A full refresh of this panel takes up to 25 s (GxEPD2 `full_refresh_time`; measured 21.4 s), so the firmware enforces an **effective hardware-safe duration**: `max(requested, ceil(25 s × 1.2) + 30 s) = 60 s`. Both values and the reason are shown on the device page, in the simulator and in device diagnostics. Unknown panels use a 180 s fallback. See [docs/HARDWARE_VERIFICATION.md](docs/HARDWARE_VERIFICATION.md).
 - API polling, page rotation, heartbeat and NTP run on **independent** schedules. A page change never triggers a fetch, and a slow fetch (on its own FreeRTOS task) never blocks rotation.
 - On failure the display keeps the cached data and shows `CACHED` / `OFFLINE <age>`. It never blanks.
+
+## Troubleshooting
+
+Common problems, from real deployments. More in [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md).
+
+**Web UI**
+
+| Symptom | Cause and fix |
+|---|---|
+| `https://localhost` does not open after choosing custom ports | URLs carry the port: `https://<ip>:<HTTPS_PORT>`, e.g. `https://192.168.68.135:5175`. `./manage.sh open` prints the right URLs. |
+| `ERR_CONNECTION_REFUSED` on every URL | The stack is not running (for example after **Uninstall**). Run `./manage.sh start` and `./manage.sh health`. |
+| Web container keeps restarting with `ambiguous site definition` | `SITE_ADDRESS` equals the LAN IP. Current `manage.sh` handles this; run `./manage.sh pull` and start through `manage.sh`, not plain `docker compose`. |
+| WSL2: works on `localhost` but not on the IP | NAT mode: use mirrored networking (`[wsl2] networkingMode=mirrored` in `%UserProfile%\.wslconfig`, then `wsl --shutdown`). Mirrored mode: same-PC access to the IP needs `[experimental] hostAddressLoopback=true`, and other devices need the Hyper-V firewall rule above. `./manage.sh health` prints these hints. |
+
+**ESP32**
+
+| Device status | Cause and fix |
+|---|---|
+| Wi-Fi OK, API `OFF`, fetches `0/0`, NTP not synced | The device is still in **setup mode**. It only starts fetching after Wi-Fi, API URL, API key **and** admin password are all saved. |
+| `connection failed: connection refused` | The PC isn't reachable on that port: `DEVICE_LAN_BIND` is still `127.0.0.1`, the Windows/Hyper-V firewall rule is missing, or the URL has the wrong port. Also note that **Test API checks the saved settings**, so press **Save** before testing new values. |
+| `HTTP 403` / `API key rejected` | The key is not **bound to a device**, or it is bound to a different device ID, revoked or expired. Create the key from the device's row in **E-Paper Devices**. |
+| `HTTP 401` | The key is mistyped or was revoked. Keys are shown only once, so create a new one. |
+| TLS / handshake error with `https://<ip>:5175` | The ESP32 does not trust Caddy's local CA. Use `http://<pc-ip>:<DEVICE_LAN_PORT>` on a LAN, or a real domain with Let's Encrypt. |
+| `401` when opening the device admin page | It uses its **own** admin password (set in the setup portal), not the web-app login. Forgot it? Hold BOOT for 15 s to factory reset. |
 
 ## Operations with `manage.sh`
 
