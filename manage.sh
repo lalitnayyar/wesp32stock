@@ -143,6 +143,16 @@ app_url() {  # the URL to show and probe: the LAN IP when the site is local, oth
   if [[ -n "$l" && "$s" =~ ^https?://(localhost|127\.0\.0\.1)(:|$) ]]; then echo "$l"; else echo "$s"; fi
 }
 
+wsl_mirrored_hint() {  # mirrored mode: the IP needs host loopback (this PC) and a Hyper-V firewall rule (LAN)
+  local p="$(env_get HTTPS_PORT)" h="$(env_get HTTP_PORT)"
+  echo "    WSL2 mirrored mode. To use the IP from this PC, add to %UserProfile%\\.wslconfig:"
+  echo "        [experimental]"
+  echo "        hostAddressLoopback=true"
+  echo "      then 'wsl --shutdown' (stops all WSL apps) and './manage.sh start'."
+  echo "    For other LAN devices, allow the ports in the Hyper-V firewall (admin PowerShell):"
+  echo "        New-NetFirewallHyperVRule -Name LalitStock -DisplayName 'Lalit Stock' -Direction Inbound -VMCreatorId '{40E0AC32-46A5-438A-A0B2-2B479E8F2E90}' -Protocol TCP -LocalPorts ${p:-443},${h:-80} -Action Allow"
+}
+
 wsl_hint() {  # how to reach a WSL2 (NAT mode) deployment from other LAN devices, e.g. a phone or the ESP32
   wsl_nat || return 0
   local win vm p ports=()
@@ -261,7 +271,8 @@ cmd_health() {
   if curl -fsSk --max-time 10 "$url/api/health" >/dev/null 2>&1; then echo "  ${G}✓${N} web/proxy $url"
   elif [[ "$url" != "$local_url" ]] && curl -fsSk --max-time 10 "$local_url/api/health" >/dev/null 2>&1; then
     echo "  ${Y}!${N} web/proxy $local_url OK, but $url is not reachable from here"
-    wsl_nat && echo "    (WSL2 NAT mode: enable mirrored networking or the port proxy; see ./manage.sh open)"
+    if wsl_nat; then echo "    (WSL2 NAT mode: enable mirrored networking or the port proxy; see ./manage.sh open)"
+    elif is_wsl; then wsl_mirrored_hint; fi
   else echo "  ${R}✗${N} web/proxy $url"; fail=1; fi
   return $fail
 }
