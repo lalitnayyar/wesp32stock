@@ -93,12 +93,31 @@ def chat(cfg: AIConfig, system: str, user: str, max_tokens: int = 700, transport
             if r.status_code != 200:
                 raise _err(r)
             return r.json().get("message", {}).get("content", "")
-        r = c.post("/chat/completions", json={"model": cfg.model, "max_tokens": max_tokens,
-                                              "messages": [{"role": "system", "content": system},
-                                                           {"role": "user", "content": user}]})
-        if r.status_code != 200:
-            raise _err(r)
-        return r.json()["choices"][0]["message"]["content"]
+        # OpenAI's current models (gpt-5, o-series) reject the legacy max_tokens and require
+        # max_completion_tokens; DeepSeek and most compatible servers still expect max_tokens.
+        # Start with the provider's preferred name and switch once if the server rejects it.
+        param = "max_completion_tokens" if cfg.kind == "openai" else "max_tokens"
+        budget = max_tokens
+        for _ in range(3):
+            r = c.post("/chat/completions", json={"model": cfg.model, param: budget,
+                                                  "messages": [{"role": "system", "content": system},
+                                                               {"role": "user", "content": user}]})
+            if r.status_code == 400 and "unsupported parameter" in r.text.lower() and param in r.text:
+                param = "max_tokens" if param == "max_completion_tokens" else "max_completion_tokens"
+                continue
+            if r.status_code != 200:
+                raise _err(r)
+            choice = r.json()["choices"][0]
+            content = (choice.get("message") or {}).get("content") or ""
+            # Reasoning models spend hidden tokens before answering; an empty reply cut off by the
+            # limit means the budget went on reasoning, so retry once with room for an answer.
+            if not content and choice.get("finish_reason") == "length" and budget < 4000:
+                budget = max(4000, budget * 8)
+                continue
+            if not content:
+                raise AIError(f"Model returned no text (finish_reason={choice.get('finish_reason')})")
+            return content
+        raise AIError("Model request failed after retries")
 
 
 def test_connection(cfg: AIConfig, transport=None) -> dict:

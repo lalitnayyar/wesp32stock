@@ -226,6 +226,31 @@ def test_ai_test_connection_success_and_failures():
     assert not nokey["ok"] and "requires an API key" in nokey["message"]
 
 
+def test_ai_chat_token_limit_parameter():
+    sent = []
+
+    def handler(request: httpx.Request):
+        body = json.loads(request.content)
+        sent.append(body)
+        if "max_tokens" in body and len(sent) == 1 and body["model"] == "new":
+            return httpx.Response(400, json={"error": {"message": "Unsupported parameter: 'max_tokens' is not "
+                                                       "supported with this model. Use 'max_completion_tokens' instead."}})
+        if body["model"] == "reasoning" and body.get("max_completion_tokens", 0) < 4000:
+            return httpx.Response(200, json={"choices": [{"message": {"content": ""}, "finish_reason": "length"}]})
+        return httpx.Response(200, json={"choices": [{"message": {"content": "OK"}, "finish_reason": "stop"}]})
+
+    t = httpx.MockTransport(handler)
+    key = "sk-test-secret-123456"
+    assert ai.chat(ai.AIConfig("openai", "https://x/v1", "gpt", key), "s", "u", transport=t) == "OK"
+    assert "max_completion_tokens" in sent[-1] and "max_tokens" not in sent[-1]
+    sent.clear()
+    assert ai.chat(ai.AIConfig("deepseek", "https://x", "new", key), "s", "u", transport=t) == "OK"
+    assert "max_tokens" in sent[0] and "max_completion_tokens" in sent[1]
+    sent.clear()
+    assert ai.chat(ai.AIConfig("openai", "https://x/v1", "reasoning", key), "s", "u", max_tokens=5, transport=t) == "OK"
+    assert sent[0]["max_completion_tokens"] == 5 and sent[1]["max_completion_tokens"] == 4000
+
+
 def test_ai_provider_key_encrypted_masked_and_redacted(admin, db):
     r = admin.post("/api/v1/ai/providers", json={"kind": "openai", "name": "OpenAI", "model": "gpt-test",
                                                  "api_key": "sk-test-secret-123456"})
