@@ -125,8 +125,8 @@ The **server** splits the dashboard into pages and lays out each page body as si
 | Reverse proxy / HTTPS | `deploy/Caddyfile` | Caddy 2 |
 | ESP32 firmware | `firmware/LalitStockFirmware/` | Arduino-ESP32 3.3.12, GxEPD2 1.6.9 (4-colour driver), ArduinoJson 7 |
 | Shared device contract | `shared/` | JSON config schema, panel profiles, layout, fixtures, test vectors |
-| Operations | `manage.sh` | Interactive and non-interactive lifecycle tool |
-| Hardware test sketch | `ESP32_EPaper_Test/` | Display-only Hello World (`upload.bat`) |
+| Operations | `manage.sh` | Interactive and non-interactive lifecycle tool (Linux, macOS, Git Bash on Windows) |
+| Hardware test sketch | `ESP32_EPaper_Test/` | Display-only Hello World (`upload.bat` / `upload.sh`) |
 
 ## Quick start (local Docker)
 
@@ -241,8 +241,8 @@ Full API reference: [docs/API.md](docs/API.md) and the live OpenAPI UI at `/api/
 | RES | 26 |
 | BUSY | 4 |
 
-1. **Check the display first:** `upload.bat COM3` flashes the Hello World sketch in `ESP32_EPaper_Test/`. Continue only when it shows on the panel.
-2. **Flash the firmware:** `firmware\flash.bat COM3`. This installs the ESP32 core and libraries, compiles with `PartitionScheme=min_spiffs`, uploads and opens the serial monitor. Manual equivalent:
+1. **Check the display first:** `upload.bat COM3` (Windows) or `./upload.sh [/dev/ttyUSB0]` (Linux/macOS) flashes the Hello World sketch in `ESP32_EPaper_Test/`. Continue only when it shows on the panel.
+2. **Flash the firmware:** `firmware\flash.bat COM3` (Windows) or `firmware/flash.sh [/dev/ttyUSB0]` (Linux/macOS). With no port, the Linux script uses the first `/dev/ttyUSB*` or `/dev/ttyACM*`. Your user must be in the `dialout` group (`sudo usermod -aG dialout $USER`, then log in again). Set `NO_MONITOR=1` to skip the serial monitor. Either script installs the ESP32 core and libraries, compiles with `PartitionScheme=min_spiffs`, uploads and opens the serial monitor. Manual equivalent:
    ```bash
    arduino-cli compile --fqbn esp32:esp32:esp32:PartitionScheme=min_spiffs firmware/LalitStockFirmware
    arduino-cli upload  -p COM3 --fqbn esp32:esp32:esp32:PartitionScheme=min_spiffs firmware/LalitStockFirmware
@@ -307,13 +307,16 @@ The Python, TypeScript and C++ implementations of the device rules all run again
 ```text
 backend/            FastAPI app, services (ledger, market data, dashboard builder, AI), Alembic, tests
 frontend/           React admin UI and E-Paper simulator (src/sim)
-firmware/           ESP32 firmware (LalitStockFirmware/), host tests, flash.bat
+firmware/           ESP32 firmware (LalitStockFirmware/), host tests, flash.bat / flash.sh
 shared/             Device contract: config schema, panel profiles, layout, fixtures, test vectors
 deploy/             Caddyfile, extra-ca/ for TLS-inspecting proxies
 docs/               Deployment, API, ESP32 setup, render contract, simulator, backup, troubleshooting, screenshots
 tools/gen_shared.py Generator for derived contract files
+tools/esp32_flash.sh Shared compile/upload helper for flash.sh and upload.sh
 ESP32_EPaper_Test/  Display-only hardware test sketch
-manage.sh           Operations tool
+manage.sh           Operations tool (bash: Linux, macOS, Git Bash)
+upload.bat / .sh    Flash the hardware test sketch (Windows / Linux)
+push.bat / .sh      Commit everything and push the current branch (Windows / Linux)
 ```
 
 ## Documentation index

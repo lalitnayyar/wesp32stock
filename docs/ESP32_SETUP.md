@@ -12,6 +12,8 @@ ESP32-WROOM-32 (board profile *ESP32 Dev Module*) + WeAct Studio 2.9" 4-colour E
 firmware\flash.bat COM3
 ```
 
+On Linux/macOS: `firmware/flash.sh [/dev/ttyUSB0]` (port auto-detected if omitted; needs `dialout` group membership; `NO_MONITOR=1` skips the monitor).
+
 This installs the ESP32 core and the GxEPD2, Adafruit GFX and ArduinoJson libraries if they are missing, compiles with `PartitionScheme=min_spiffs` (the firmware is about 1.3 MB, which does not fit the default 1.25 MB app partition), uploads, and opens the serial monitor at 115200. Manual equivalent:
 
 ```bash

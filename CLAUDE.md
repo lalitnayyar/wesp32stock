@@ -27,6 +27,7 @@ bash firmware/test/run_host_tests.sh                                   # g++ hos
 arduino-cli compile --fqbn esp32:esp32:esp32:PartitionScheme=min_spiffs firmware/LalitStockFirmware
 firmware\flash.bat COM3                                                # compile + flash + monitor (Windows)
 upload.bat COM3                                                        # display-only Hello World test sketch
+firmware/flash.sh [/dev/ttyUSB0]; ./upload.sh [port]                   # Linux/macOS equivalents (via tools/esp32_flash.sh)
 
 python tools/gen_shared.py [--check] [--font <glcdfont.c>]             # regenerate derived shared files
 ```
