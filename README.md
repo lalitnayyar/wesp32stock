@@ -23,14 +23,15 @@
 4. [How it works](#how-it-works)
 5. [Quick start](#quick-start-local-docker)
 6. [User guide: web administration](#user-guide-web-administration)
-7. [Step-by-step: configure a test client](#step-by-step-configure-a-test-client)
-8. [E-Paper pagination and refresh safety](#e-paper-pagination-and-refresh-safety)
-9. [Troubleshooting](#troubleshooting)
-10. [Operations with `manage.sh`](#operations-with-managesh)
-11. [Development and tests](#development-and-tests)
-12. [Repository layout](#repository-layout)
-13. [Documentation index](#documentation-index)
-14. [Support and contact](#support-and-contact)
+7. [User guide: Telegram bot and insight export](#user-guide-telegram-bot-and-insight-export)
+8. [Step-by-step: configure a test client](#step-by-step-configure-a-test-client)
+9. [E-Paper pagination and refresh safety](#e-paper-pagination-and-refresh-safety)
+10. [Troubleshooting](#troubleshooting)
+11. [Operations with `manage.sh`](#operations-with-managesh)
+12. [Development and tests](#development-and-tests)
+13. [Repository layout](#repository-layout)
+14. [Documentation index](#documentation-index)
+15. [Support and contact](#support-and-contact)
 
 ---
 
@@ -42,6 +43,8 @@
 - **Honest data:** stale and unavailable quotes are labelled on the web and on the device. The last good data is never silently replaced.
 - **Multi-market:** US, UAE (DFM `.AE`, ADX) and other Yahoo-covered exchanges, with FX conversion and benchmark comparison.
 - **Optional AI insights:** OpenAI, DeepSeek or a local Ollama model explains the backend-calculated figures. The AI never sees raw credentials and never computes numbers itself.
+- **Your portfolio in Telegram:** ask a private bot for `/summary`, `/holdings`, `/movers` or an AI insight from your phone. It works behind a home router: no domain or port forwarding needed.
+- **Shareable insights:** export any AI insight as a Markdown file, or send it to your Telegram chat with one click.
 - **Testable without hardware:** a pixel-exact browser simulator of the E-Paper device is built in.
 
 ## Screenshots
@@ -57,6 +60,12 @@
 | ![API keys](docs/screenshots/api-keys.png) | ![Settings](docs/screenshots/settings.png) |
 | **AI settings** | **About and disclaimer** |
 | ![AI settings](docs/screenshots/ai-settings.png) | ![About](docs/screenshots/about.png) |
+| **Telegram bot settings** | **AI insight: export .md / send to Telegram** |
+| ![Telegram settings](docs/screenshots/telegram-settings.png) | ![AI insight export](docs/screenshots/ai-insight-export.png) |
+
+**Talk to your portfolio in Telegram** (replies captured from the bot on demo data):
+
+<p align="center"><img src="docs/screenshots/telegram-chat.png" alt="Telegram bot conversation" width="380"></p>
 
 **The E-Paper display** (168 × 384 portrait, rendered by the simulator with the firmware's own font and draw-ops):
 
@@ -88,6 +97,16 @@
 - One interface for **OpenAI, DeepSeek and Ollama**. Keys are encrypted at rest and masked in every response.
 - **Test Connection** checks the configuration, credentials and model availability, sends a tiny request and reports latency.
 - Insights: portfolio summary, top contributors, concentration risk, unusual moves, benchmark comparison, risk overview and free-form questions. The model receives only a verified fact sheet computed by the backend.
+- **Export .md:** download any insight as a Markdown report (title, portfolio, provider/model, question, answer and disclaimer).
+- **Send to Telegram:** deliver the same report to every allowed Telegram chat. Long reports are split to fit Telegram's message limit.
+- Works with current OpenAI reasoning models (gpt-5 family): the backend sends `max_completion_tokens` and retries when a model spends its whole budget on hidden reasoning.
+
+### Telegram bot (optional)
+- **Slash commands:** `/summary`, `/holdings`, `/movers`, `/exposure`, `/benchmarks`, `/portfolios`, `/use <n>`, `/insight [task]`, `/ask <question>`, `/id` and `/help`. The commands are registered with Telegram, so they autocomplete in the chat.
+- **No inbound connection needed:** the backend long-polls Telegram over outbound HTTPS. It works on a home PC, WSL2 or behind NAT, with no domain, webhook or port forwarding.
+- **Private by default:** only chat IDs on your allow-list get answers. Any other chat learns only its own chat ID (so you can add it), and every attempt is written to the audit log.
+- **Per-chat portfolio:** each chat picks its own portfolio with `/use`. The default portfolio is set in Settings.
+- **Secrets stay secret:** the bot token is encrypted at rest, masked in the UI and API, and redacted from logs.
 
 ### ESP32 E-Paper client
 - WeAct Studio 2.9" **4-colour** panel (GDEY029F51H / JD79667) on an ESP32-WROOM-32.
@@ -157,12 +176,12 @@ cd wesp32stock
 | **Dashboard** | Portfolio value, today's and unrealised P/L, 90-day value chart, market status, data health, device status, AI status and benchmarks. |
 | **Portfolios** | Create portfolios and brokers. Record transactions (BUY, SELL, DIVIDEND, SPLIT, FEE, DEPOSIT, WITHDRAWAL, ADJUSTMENT). Holdings update immediately from the ledger. |
 | **Stocks** | Add symbols (validated against the provider), set name/exchange/currency/sector, activate or deactivate, refresh a quote, view history. |
-| **Analytics** | Sector and currency exposure, performers today, benchmark comparison and **AI insights**. |
+| **Analytics** | Sector and currency exposure, performers today, benchmark comparison and **AI insights**, with **Export .md** and **Send to Telegram**. |
 | **E-Paper Devices** | Register ESP32 devices, assign a portfolio, see online/offline status, RSSI, uptime, firmware, data version, page state, and requested vs effective page duration. Preview what the device shows. |
 | **E-Paper Simulator** | A browser replica of the device for testing (see below). |
 | **API Management** | Create, rotate, revoke and expire device API keys, and view the per-request access log. |
 | **AI Settings** | Add OpenAI / DeepSeek / Ollama providers, choose a model and run **Test Connection**. |
-| **Settings** | Timezone, quote refresh interval, timeouts, retries, backoff, closed-market polling, stale threshold, heartbeat timeout, device rate limit, and the admin password. |
+| **Settings** | Timezone, quote refresh interval, timeouts, retries, backoff, closed-market polling, stale threshold, heartbeat timeout, device rate limit, the admin password and the **Telegram bot** (token, allowed chats, default portfolio, status, test). |
 | **About** | Version, owner, environment, link to the OpenAPI docs, and the disclaimer. |
 
 **Typical first session**
@@ -172,6 +191,54 @@ cd wesp32stock
 3. Open the portfolio and **Add transaction**: a DEPOSIT, then BUY lines with date, quantity, price and fees.
 4. Check the **Dashboard** and **Analytics**. Quotes refresh automatically (default every 60 s). **Refresh now** forces a poll.
 5. Optional: **AI Settings → Add provider → Test Connection**, then **Analytics → AI insights → Generate**.
+6. Optional: **Settings → Telegram bot** to chat with your portfolio from your phone (see the next section).
+
+## User guide: Telegram bot and insight export
+
+### 1. Create the bot (2 minutes)
+
+1. In Telegram, open a chat with **@BotFather** and send `/newbot`.
+2. Choose a display name (e.g. *Lalit Stock*) and a username ending in `bot` (e.g. `MyLalitStockBot`).
+3. BotFather replies with a **token** like `7012345678:AAF...`. Treat it like a password.
+
+### 2. Connect it to Lalit Stock
+
+1. Open the web admin → **Settings → Telegram bot**.
+2. Paste the token, tick **Enabled** and press **Save**. The status badge changes to `polling @YourBot` within a few seconds.
+3. In Telegram, open your bot and send `/start`. Because your chat isn't allowed yet, the bot replies with only:
+   `This chat is not authorised. Chat ID: 123456789`.
+4. Copy that number into **Allowed chat IDs** and press **Save**. Separate several IDs with commas. Group chat IDs start with `-`.
+5. Press **Test & greet**. The bot checks the token, registers its slash-command menu, and sends `✅ ... is connected` to every allowed chat.
+6. Optional: pick a **Default portfolio**. Otherwise the first portfolio is used.
+
+### 3. Use it
+
+| Command | What you get |
+|---|---|
+| `/summary` | Value, invested capital, unrealised and today's P/L, realised P/L, dividends, cash, best/worst holding and stale-data warnings |
+| `/holdings` | Every holding with quantity, price, day change, unrealised P/L % and allocation, largest first |
+| `/movers` | Top 3 gainers and losers today with their P/L |
+| `/exposure` | Sector and currency exposure |
+| `/benchmarks` | Benchmark index level, day, 1M, YTD and 1Y returns |
+| `/portfolios`, `/use 2` | List portfolios, then switch this chat to number 2 (saved per chat) |
+| `/insight risk` | An AI insight. Tasks: `summary`, `daily`, `contributors`, `concentration`, `unusual`, `benchmarks`, `risk` |
+| `/ask Which holding drives my currency risk?` | A free-form AI question answered from your backend figures |
+| `/id`, `/help` | This chat's ID; the command list |
+
+AI commands use the **default AI provider** (AI Settings) and are audit-logged like web insights. All numbers come from the backend, and the AI only interprets them.
+
+### 4. Export or send an AI insight from the web
+
+1. **Analytics → AI insights**: choose a task (or *Ask a question*) and press **Generate**.
+2. **Export .md** downloads a report such as `insight-demo-portfolio-concentration-20261013-2348.md`. It contains a heading, timestamp, provider/model, your question, the answer and the disclaimer, ready for Obsidian, GitHub or e-mail.
+3. **Send to Telegram** posts the same report to every allowed chat. The button stays disabled until the bot has a token and at least one allowed chat.
+
+### How it works and security notes
+
+- The backend runs one background thread that long-polls `getUpdates`, so it only makes **outbound** HTTPS calls to `api.telegram.org`. Nothing has to be exposed to the internet. `TELEGRAM_API_BASE` (in `.env`) can point at a self-hosted Bot API server.
+- Messages are sent as plain text (no Markdown parsing), so AI output can never break formatting. Replies over 4000 characters are split.
+- Only allow-listed chats see data. Remove a chat ID or the token to cut access immediately. The status line shows the last poll, the last error and the number of messages handled.
+- Anyone in an allowed **group** chat can query the bot, so allow groups deliberately.
 
 ## Step-by-step: configure a test client
 
@@ -300,6 +367,18 @@ Common problems, from real deployments. More in [docs/TROUBLESHOOTING.md](docs/T
 | `ERR_CONNECTION_REFUSED` on every URL | The stack is not running (for example after **Uninstall**). Run `./manage.sh start` and `./manage.sh health`. |
 | Web container keeps restarting with `ambiguous site definition` | `SITE_ADDRESS` equals the LAN IP. Current `manage.sh` handles this; run `./manage.sh pull` and start through `manage.sh`, not plain `docker compose`. |
 | WSL2: works on `localhost` but not on the IP | NAT mode: use mirrored networking (`[wsl2] networkingMode=mirrored` in `%UserProfile%\.wslconfig`, then `wsl --shutdown`). Mirrored mode: same-PC access to the IP needs `[experimental] hostAddressLoopback=true`, and other devices need the Hyper-V firewall rule above. `./manage.sh health` prints these hints. |
+
+**Telegram bot**
+
+| Symptom | Cause and fix |
+|---|---|
+| Badge says `starting / error`, last error `Unauthorized` | The token is wrong or was revoked in @BotFather. Paste a fresh token and **Save**. |
+| Last error `Conflict: terminated by other getUpdates request` | The same token is used by another program or a second Lalit Stock install. Each token can be polled by only one server. |
+| Last error mentions `webhook` | The token has a webhook set by another tool. In a browser, open `https://api.telegram.org/bot<token>/deleteWebhook` once. |
+| Bot replies "This chat is not authorised" | Add the chat ID it shows to **Allowed chat IDs** and **Save**. |
+| `/insight` says no AI provider | Add a provider under **AI Settings** and mark it **Default**. |
+| `Telegram unreachable: ConnectError` | The server has no outbound internet access to `api.telegram.org` (firewall or proxy). Behind TLS-inspecting antivirus, add its root CA to `deploy/extra-ca/`. |
+| AI test fails: `Unsupported parameter: 'max_tokens'` | Fixed in current code (gpt-5 models need `max_completion_tokens`). Run `./manage.sh update`. |
 
 **ESP32**
 

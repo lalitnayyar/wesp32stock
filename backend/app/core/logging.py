@@ -10,6 +10,7 @@ from datetime import datetime, timezone
 _SECRET_PATTERNS = [
     re.compile(r"lsk_[A-Za-z0-9]{8}_[A-Za-z0-9_\-]+"),            # device API keys
     re.compile(r"sk-[A-Za-z0-9_\-]{8,}"),                           # OpenAI/DeepSeek style keys
+    re.compile(r"\d{6,12}:[A-Za-z0-9_\-]{30,}"),                   # Telegram bot tokens
     re.compile(r"(?i)(bearer\s+)[A-Za-z0-9._\-]+"),
     re.compile(r"(?i)(\"?(?:password|api_key|secret|token)\"?\s*[:=]\s*\"?)[^\s\",}]+"),
 ]

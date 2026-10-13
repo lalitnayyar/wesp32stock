@@ -10,8 +10,8 @@ from ..core.crypto import decrypt_secret, encrypt_secret, mask_secret
 from ..core.db import get_db
 from ..core.security import current_admin
 from ..models import AIProvider, Portfolio, User
-from ..services import analytics
 from ..services.ai import providers as ai
+from ..services.ai import run as ai_run
 from ..services.audit import audit
 from .common import get_or_404
 
@@ -48,9 +48,7 @@ def p_out(p: AIProvider) -> dict:
             "last_test_latency_ms": p.last_test_latency_ms, "last_test_message": p.last_test_message}
 
 
-def cfg_of(p: AIProvider) -> ai.AIConfig:
-    return ai.AIConfig(kind=p.kind, base_url=p.base_url, model=p.model, api_key=decrypt_secret(p.api_key_enc),
-                       timeout_s=p.timeout_s)
+cfg_of = ai_run.cfg_of
 
 
 def _set_default(db: Session, p: AIProvider) -> None:
@@ -132,19 +130,14 @@ class InsightIn(BaseModel):
 @router.post("/insights")
 def insights(body: InsightIn, db: Session = Depends(get_db), user: User = Depends(current_admin)):
     pf = get_or_404(db, Portfolio, body.portfolio_id, "Portfolio")
-    if body.provider_id:
-        p = get_or_404(db, AIProvider, body.provider_id, "AI provider")
-    else:
-        p = db.query(AIProvider).filter(AIProvider.is_default.is_(True), AIProvider.enabled.is_(True)).one_or_none()
-    if p is None or not p.enabled:
-        raise HTTPException(409, "No enabled AI provider configured")
-    facts = ai.build_facts(analytics.portfolio_summary(db, pf), analytics.benchmarks(db))
+    p = get_or_404(db, AIProvider, body.provider_id, "AI provider") if body.provider_id else None
     try:
-        text = ai.insight(cfg_of(p), body.task, facts, body.question)
+        out = ai_run.generate(db, pf, body.task, body.question, provider=p)
+    except ai_run.NoProvider as exc:
+        raise HTTPException(409, str(exc))
     except ai.AIError as exc:
         raise HTTPException(502, f"AI provider error: {exc}")
     except Exception as exc:
         raise HTTPException(502, f"AI provider unreachable: {type(exc).__name__}")
-    audit(db, user.username, "ai_insight", "portfolio", pf.id, {"task": body.task, "provider": p.name})
-    return {"task": body.task, "provider": p.name, "model": p.model, "text": text, "facts": facts,
-            "disclaimer": "AI output may be wrong and is not financial advice. Figures in 'Facts' come from the backend."}
+    audit(db, user.username, "ai_insight", "portfolio", pf.id, {"task": body.task, "provider": out["provider"]})
+    return out

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Bar, BarChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { fmt, get, pnlClass, post, signed } from "../api";
 import { ErrorBox, Notice, Stat, useAction, useLoad } from "../components/ui";
+import { downloadText, insightFilename, insightMarkdown } from "../insightMarkdown";
 
 const TASK_LABELS: Record<string, string> = {
   portfolio_summary: "Portfolio summary", daily_summary: "Daily market summary", contributors: "Contributor analysis",
@@ -23,6 +24,11 @@ function Exposure({ title, data }: { title: string; data: Record<string, string>
   );
 }
 
+function markdownOf(a: any, portfolio: string) {
+  return insightMarkdown({ portfolio, taskLabel: TASK_LABELS[a.task] ?? a.task, question: a.question, provider: a.provider,
+    model: a.model, text: a.text, disclaimer: a.disclaimer, generatedAt: a.generatedAt });
+}
+
 export default function AnalyticsPage() {
   const { data: pfs, error } = useLoad(() => get("/api/v1/portfolios"));
   const [pid, setPid] = useState<number | null>(null);
@@ -32,6 +38,8 @@ export default function AnalyticsPage() {
   const [question, setQuestion] = useState("");
   const [answer, setAnswer] = useState<any>(null);
   const act = useAction();
+  const share = useAction();
+  const { data: tg } = useLoad(() => get("/api/v1/telegram/config"));
   useEffect(() => { if (pfs?.length && pid === null) setPid(pfs[0].id); }, [pfs, pid]);
   useEffect(() => {
     if (pid) {
@@ -89,7 +97,10 @@ export default function AnalyticsPage() {
                 {Object.entries(TASK_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
               </select>
               {task === "question" && <input className="input flex-1" placeholder="e.g. Which holding drives most of my currency risk?" value={question} onChange={(e) => setQuestion(e.target.value)} maxLength={1000} />}
-              <button className="btn" disabled={act.busy} onClick={async () => setAnswer(await act.run(() => post("/api/v1/ai/insights", { portfolio_id: pid, task, question })))}>
+              <button className="btn" disabled={act.busy} onClick={async () => {
+                const r: any = await act.run(() => post("/api/v1/ai/insights", { portfolio_id: pid, task, question }));
+                setAnswer(r && { ...r, question: task === "question" ? question : "", generatedAt: new Date() });
+              }}>
                 {act.busy ? "Thinking…" : "Generate"}
               </button>
             </div>
@@ -99,6 +110,18 @@ export default function AnalyticsPage() {
                 <div className="text-xs text-stone-500">{answer.provider} · {answer.model}</div>
                 <div className="whitespace-pre-wrap text-sm bg-stone-50 border rounded p-3 mt-1">{answer.text}</div>
                 <p className="text-xs text-amber-800 mt-1">{answer.disclaimer}</p>
+                <div className="flex flex-wrap gap-2 mt-2 items-center">
+                  <button className="btn-alt" onClick={() => {
+                    const name = summary.portfolio.name;
+                    downloadText(insightFilename(name, answer.task, answer.generatedAt), markdownOf(answer, name));
+                  }}>Export .md</button>
+                  <button className="btn-alt" disabled={share.busy || !tg?.configured}
+                    title={tg?.configured ? "Send to the allowed Telegram chats" : "Configure the Telegram bot in Settings first"}
+                    onClick={() => share.run(() => post("/api/v1/telegram/send", { text: markdownOf(answer, summary.portfolio.name) }),
+                      "Sent to Telegram")}>{share.busy ? "Sending…" : "Send to Telegram"}</button>
+                  {!tg?.configured && <span className="text-xs text-stone-500">Telegram: set up the bot under Settings → Telegram bot.</span>}
+                </div>
+                {share.view}
               </div>
             )}
           </div>

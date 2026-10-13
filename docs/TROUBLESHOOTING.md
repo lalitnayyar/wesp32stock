@@ -15,6 +15,17 @@
 | Logged out immediately over plain HTTP | `COOKIE_SECURE=true` requires HTTPS. Set it to false only for plain-HTTP development. |
 | Benchmark cannot be activated | The symbol failed provider validation. Check it with Stocks → Validate. |
 
+## Telegram bot
+
+| Symptom | Check |
+|---|---|
+| Status `starting / error`, `Unauthorized` | Wrong or revoked token. Paste a new one from @BotFather and Save. |
+| `Conflict: terminated by other getUpdates request` | Another program or install polls the same token. Use one token per server. |
+| Error mentions a webhook | Open `https://api.telegram.org/bot<token>/deleteWebhook` once. |
+| "This chat is not authorised" | Add the shown chat ID under Settings → Telegram bot → Allowed chat IDs. |
+| `Telegram unreachable` | No outbound HTTPS to api.telegram.org, or a TLS-inspecting antivirus whose root CA is missing from `deploy/extra-ca/`. |
+| AI provider test: `Unsupported parameter: 'max_tokens'` | Fixed: run `./manage.sh update` (OpenAI gpt-5 models need `max_completion_tokens`). |
+
 ## ESP32
 
 | Symptom | Check |

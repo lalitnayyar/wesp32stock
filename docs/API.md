@@ -46,6 +46,7 @@ POST /api/v1/device/heartbeat
 | Devices | `GET/POST /devices`, `PUT/DELETE /devices/{id}`, `GET /devices/{id}/preview` |
 | API keys | `GET/POST /api-keys`, `GET /api-keys/scopes`, `POST /api-keys/{id}/revoke`, `POST /api-keys/{id}/rotate`, `GET /api-keys/{id}/logs`, `GET /access-logs` |
 | AI | `GET/POST /ai/providers`, `PUT/DELETE /ai/providers/{id}`, `POST /ai/providers/{id}/test`, `POST /ai/insights` |
+| Telegram bot | `GET/PUT /telegram/config` (token write-only, masked), `POST /telegram/test` (getMe, register commands, greet allowed chats), `POST /telegram/send` (text to all allowed chats) |
 | Simulator (dev/test) | `GET /simulator/contract`, `GET/PUT /simulator/config`, `PUT /simulator/runtime`, `GET /simulator/fixture`, `GET /simulator/dashboard`, `GET /simulator/refresh-check`, `GET/POST /simulator/events`, `POST /simulator/reset` |
 | System | `GET /api/health`, `GET /api/health/ready`, `GET /about`, `GET /audit`, `POST /demo/seed`, `POST /demo/remove` |
 

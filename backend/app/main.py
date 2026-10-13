@@ -19,7 +19,8 @@ from .core.config import get_settings
 from .core.db import SessionLocal
 from .core.logging import setup_logging
 from .routers import ai, auth, devices, portfolios, simulator, stocks, system
-from .services import scheduler, seed
+from .routers import telegram as telegram_router
+from .services import scheduler, seed, telegram
 
 log = logging.getLogger("app")
 
@@ -35,9 +36,11 @@ async def lifespan(app: FastAPI):
         db.close()
     if s.scheduler_enabled:
         scheduler.start()
+        telegram.start()
     log.info("Lalit Stock Application %s started (env=%s, provider=%s, simulator=%s)", __version__, s.app_env,
              s.market_provider, s.simulator_active)
     yield
+    telegram.shutdown()
     scheduler.shutdown()
 
 
@@ -83,7 +86,7 @@ def create_app() -> FastAPI:
         return JSONResponse({"error": {"status": 500, "message": "Internal server error"}}, status_code=500)
 
     for r in (system.router, auth.router, stocks.router, portfolios.router, devices.router, ai.router,
-              simulator.router):
+              simulator.router, telegram_router.router):
         app.include_router(r)
     return app
 

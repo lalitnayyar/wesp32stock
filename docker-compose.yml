@@ -36,6 +36,7 @@ services:
       SIMULATOR_ENABLED: ${SIMULATOR_ENABLED:-}
       COOKIE_SECURE: ${COOKIE_SECURE:-true}
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      TELEGRAM_API_BASE: ${TELEGRAM_API_BASE:-https://api.telegram.org}
     # Optional LAN port so an ESP32 on the local network can reach the API during development
     # (plain HTTP - development only). Bound to 127.0.0.1 unless DEVICE_LAN_BIND=0.0.0.0.
     ports:
