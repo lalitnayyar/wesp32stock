@@ -51,7 +51,11 @@ compose() {
   fi
   # The shell value overrides .env, so LAN_ADDRESS=auto reaches Caddy as a real IP.
   lan_ip >/dev/null  # resolve once in this shell (cached in LAN_IP)
-  LAN_ADDRESS="$LAN_IP" "${DC[@]}" --env-file .env "$@"   # relative: we always run from the repo root
+  # SITE_ADDRESS set to the LAN IP itself would define the same Caddy site twice ("ambiguous site
+  # definition"); the LAN_ADDRESS block already serves that IP, so give Caddy "localhost" instead.
+  local site; site="$(env_get SITE_ADDRESS)"; site="${site:-localhost}"
+  [[ "$site" == "$LAN_IP" ]] && site=localhost
+  SITE_ADDRESS="$site" LAN_ADDRESS="$LAN_IP" "${DC[@]}" --env-file .env "$@"   # relative: we always run from the repo root
 }
 
 env_get() {  # env_get KEY -> value from .env (no sourcing, no eval)
