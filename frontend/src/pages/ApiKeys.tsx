@@ -16,7 +16,7 @@ export function ShowKeyOnce({ data, onClose }: { data: any; onClose: () => void 
 
 export function CreateKeyForm({ devices, fixedDevice, onCreated }: { devices: any[]; fixedDevice?: number; onCreated: (d: any) => void }) {
   const { data: scopes } = useLoad(() => get("/api/v1/api-keys/scopes"));
-  const [f, setF] = useState<any>({ name: "", device_id: fixedDevice ?? "", expires_in_days: 365, scopes: ["device:dashboard", "device:heartbeat"] });
+  const [f, setF] = useState<any>({ name: "", device_id: fixedDevice ?? devices[0]?.id ?? "", expires_in_days: 365, scopes: ["device:dashboard", "device:heartbeat"] });
   const act = useAction();
   const submit = async (e: FormEvent) => {
     e.preventDefault();
@@ -26,10 +26,12 @@ export function CreateKeyForm({ devices, fixedDevice, onCreated }: { devices: an
   return (
     <form onSubmit={submit}>
       <Field label="Name"><input className="input" value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} required /></Field>
+      {/* A key without a device is rejected by every device endpoint, so a device is required. */}
       <Field label="Bound device">
-        <select className="input" value={f.device_id} disabled={!!fixedDevice} onChange={(e) => setF({ ...f, device_id: e.target.value })}>
-          <option value="">— none (cannot read dashboards) —</option>{devices.map((d) => <option key={d.id} value={d.id}>{d.name} ({d.device_uid})</option>)}
+        <select className="input" value={f.device_id} disabled={!!fixedDevice} required onChange={(e) => setF({ ...f, device_id: e.target.value })}>
+          <option value="" disabled>— select a device —</option>{devices.map((d) => <option key={d.id} value={d.id}>{d.name} ({d.device_uid})</option>)}
         </select>
+        {!devices.length && <p className="text-sm text-red-700 mt-1">Register the device under E-Paper Devices first.</p>}
       </Field>
       <Field label="Expires in days (blank = never)"><input className="input" type="number" min={1} max={3650} value={f.expires_in_days ?? ""} onChange={(e) => setF({ ...f, expires_in_days: e.target.value })} /></Field>
       <span className="label">Scopes</span>
@@ -40,7 +42,7 @@ export function CreateKeyForm({ devices, fixedDevice, onCreated }: { devices: an
         </label>
       ))}
       {act.view}
-      <button className="btn mt-3" disabled={act.busy}>Generate key</button>
+      <button className="btn mt-3" disabled={act.busy || !f.device_id}>Generate key</button>
     </form>
   );
 }
