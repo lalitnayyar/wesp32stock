@@ -134,6 +134,11 @@ lan_ip() {  # LAN_ADDRESS from .env; empty or "auto" = detect now (follows DHCP 
 }
 lan_url() { local s; s="$(lan_ip)"; [[ "$s" != 127.0.0.1 ]] && echo "https://${s}$(https_suffix)"; return 0; }
 
+app_url() {  # the URL to show and probe: the LAN IP when the site is local, otherwise SITE_ADDRESS (a domain)
+  local s l; s="$(site_url)"; l="$(lan_url)"
+  if [[ -n "$l" && "$s" =~ ^https?://(localhost|127\.0\.0\.1)(:|$) ]]; then echo "$l"; else echo "$s"; fi
+}
+
 wsl_hint() {  # how to reach a WSL2 (NAT mode) deployment from other LAN devices, e.g. a phone or the ESP32
   wsl_nat || return 0
   local win vm p ports=()
@@ -222,7 +227,14 @@ cmd_secrets() {
 
 # ----------------------------------------------------------------------------- 4..9
 cmd_build()   { require_env; info "Building images"; compose build --pull; }
-cmd_start()   { require_env; info "Starting services"; compose up -d; cmd_status; echo; info "Web UI: $(site_url)   API docs: $(site_url)/api/docs"; [[ -z "$(lan_url)" ]] || info "LAN:    $(lan_url)"; wsl_hint; }
+cmd_start()   { require_env; info "Starting services"; compose up -d; cmd_status; echo; print_urls; wsl_hint; }
+
+print_urls() {
+  lan_ip >/dev/null  # resolve once in this shell (cached in LAN_IP)
+  local url; url="$(app_url)"
+  echo "Web UI:   $url"; echo "API docs: $url/api/docs"; echo "Health:   $url/api/health"
+  [[ "$url" == "$(site_url)" ]] || echo "(This PC also: $(site_url). Other devices will warn about the internal CA certificate.)"
+}
 cmd_stop()    { require_env; info "Stopping services"; compose stop; }
 cmd_restart() { require_env; info "Restarting services"; compose up -d; compose restart; }  # up -d first applies a changed .env / LAN IP
 cmd_status()  { require_env; compose ps; }
@@ -240,8 +252,13 @@ cmd_health() {
   done
   if [[ "$out" == *'"ready"'* ]]; then echo "  ${G}✓${N} backend ready: $out"; else echo "  ${R}✗${N} backend: $out"; fail=1; fi
   if compose exec -T db pg_isready -U "$(env_get POSTGRES_USER)" >/dev/null 2>&1; then echo "  ${G}✓${N} database accepting connections"; else echo "  ${R}✗${N} database"; fail=1; fi
-  local url; url="$(site_url)"
-  if curl -fsSk --max-time 10 "$url/api/health" >/dev/null 2>&1; then echo "  ${G}✓${N} web/proxy $url"; else echo "  ${R}✗${N} web/proxy $url"; fail=1; fi
+  lan_ip >/dev/null
+  local url local_url; url="$(app_url)"; local_url="$(site_url)"
+  if curl -fsSk --max-time 10 "$url/api/health" >/dev/null 2>&1; then echo "  ${G}✓${N} web/proxy $url"
+  elif [[ "$url" != "$local_url" ]] && curl -fsSk --max-time 10 "$local_url/api/health" >/dev/null 2>&1; then
+    echo "  ${Y}!${N} web/proxy $local_url OK, but $url is not reachable from here"
+    wsl_nat && echo "    (WSL2 NAT mode: enable mirrored networking or the port proxy; see ./manage.sh open)"
+  else echo "  ${R}✗${N} web/proxy $url"; fail=1; fi
   return $fail
 }
 
@@ -383,7 +400,7 @@ redeploy() {  # rebuild images and restart on the code that is checked out now
   compose up -d
   cmd_migrate
   cmd_health || warn "Health check reported problems; previous backup is in $BACKUP_DIR"
-  info "Web UI: $(site_url)"
+  print_urls
 }
 
 cmd_update() {
@@ -398,11 +415,10 @@ cmd_update() {
 
 # ----------------------------------------------------------------------------- 16
 cmd_open() {
-  lan_ip >/dev/null
-  local url; url="$(site_url)"
-  echo "Web UI:   $url"; echo "API docs: $url/api/docs"; echo "Health:   $url/api/health"
-  [[ -z "$(lan_url)" ]] || echo "LAN:      $(lan_url)  (other devices will warn about the internal CA certificate)"
+  print_urls
   wsl_hint
+  local url; url="$(app_url)"
+  wsl_nat && url="$(site_url)"  # in NAT mode the IP only works after the port proxy / mirrored mode
   if command -v xdg-open >/dev/null 2>&1; then xdg-open "$url" >/dev/null 2>&1 || true
   elif command -v open >/dev/null 2>&1; then open "$url" || true
   elif command -v cmd.exe >/dev/null 2>&1; then cmd.exe /c start "" "$url" >/dev/null 2>&1 || true; fi
@@ -447,7 +463,7 @@ cmd_diag() {
   docker --version 2>/dev/null || true
   compose version 2>/dev/null || true
   [[ -d .git ]] && echo "git: $(git rev-parse --short HEAD 2>/dev/null) $(git status --porcelain | wc -l | tr -d ' ') uncommitted" || true
-  echo; info "LAN address"; echo "  LAN_ADDRESS=$(env_get LAN_ADDRESS) -> $(lan_ip)   Web UI: $(site_url)   LAN: $(lan_url)"
+  echo; info "LAN address"; echo "  LAN_ADDRESS=$(env_get LAN_ADDRESS) -> $(lan_ip)   Web UI: $(app_url)   This PC: $(site_url)"
   is_wsl && echo "  WSL networking: $(wslinfo --networking-mode 2>/dev/null | tr -d '\r' || echo 'unknown (assume nat)')"
   echo; info "Services"; compose ps 2>/dev/null || true
   echo; info "Disk"; df -h "$ROOT" | tail -n1
