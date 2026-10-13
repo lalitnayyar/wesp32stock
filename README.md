@@ -102,7 +102,7 @@
 
 ### Operations
 - Docker Compose stack: PostgreSQL, FastAPI backend, React frontend, Caddy.
-- `manage.sh`: an interactive menu or one-shot commands for build, start, health, logs, migrations, backup/restore, update, tests, diagnostics and reset.
+- `manage.sh`: an interactive menu or one-shot commands for build, start, health, logs, migrations, backup/restore, update, tests, diagnostics, reset and uninstall.
 
 ## How it works
 
@@ -286,6 +286,15 @@ Run `./manage.sh` with no arguments for the interactive menu, or use a subcomman
 | `logs [svc]` | Follow logs | `open` | Show/open web and API URLs |
 | `diag` | Diagnostics (secrets redacted) | `test [backend\|frontend\|firmware\|all]` | Run test suites |
 | `reset` | Remove demo data / reset data (asks for confirmation) | `help` | Help and disclaimer |
+| `uninstall` | Remove the application (levels below) | | |
+
+**Uninstall** (`./manage.sh uninstall`, menu option 21) offers three levels. Source code, `.env` and `backups/` are always kept:
+
+1. Remove containers and the network. Data is kept, and `./manage.sh start` restores everything.
+2. Also remove the application images. Data is kept; run `./manage.sh build` before starting again.
+3. Also **delete all data**: the database, certificates and Caddy state. You must type `DELETE`, and a final backup is taken first.
+
+With `-y` it defaults to level 1; set `UNINSTALL_LEVEL=2` or `3` to choose another level. To remove the application completely, run level 3 and then delete the project folder.
 
 Exit codes: `0` ok, `1` failure, `2` usage, `3` missing prerequisite, `4` aborted. Log file: `logs/manage.log`. Backups: [docs/BACKUP_RESTORE.md](docs/BACKUP_RESTORE.md).
 

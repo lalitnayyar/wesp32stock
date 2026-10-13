@@ -343,6 +343,33 @@ cmd_diag() {
   echo; info "Recent backend errors"; compose logs --tail=300 backend 2>/dev/null | grep -E '"level": "(ERROR|WARNING)"' | tail -n10 || true
 }
 
+# ----------------------------------------------------------------------------- 21
+cmd_uninstall() {
+  require_env
+  cat <<EOF
+Uninstall levels (source code, .env and backups/ are always kept):
+  1) Remove containers and network        data kept; ./manage.sh start brings it back
+  2) Also remove the application images   data kept; needs ./manage.sh build again
+  3) Also DELETE ALL DATA                 database, certificates, Caddy state (backup taken first)
+  4) Cancel
+EOF
+  local ch; if $ASSUME_YES; then ch="${UNINSTALL_LEVEL:-1}"; else read -r -p "Choice: " ch; fi
+  case "$ch" in
+    1) confirm "Stop and remove all Lalit Stock containers?" || exit 4
+       compose down --remove-orphans ;;
+    2) confirm "Stop and remove containers, network and the application images?" || exit 4
+       compose down --remove-orphans --rmi all
+       docker image rm lalitstock-backend-test >/dev/null 2>&1 || true ;;
+    3) confirm_word "This permanently deletes the database (portfolios, transactions, devices, API keys) and all certificates." DELETE || exit 4
+       if compose ps --status running --services 2>/dev/null | grep -qx db; then cmd_backup
+       else warn "Database is not running; no final backup taken"; confirm "Continue without a backup?" || exit 4; fi
+       compose down --remove-orphans --rmi all --volumes
+       docker image rm lalitstock-backend-test >/dev/null 2>&1 || true ;;
+    *) info "Cancelled"; exit 4 ;;
+  esac
+  info "Uninstalled (level $ch). Kept: source, .env, $BACKUP_DIR. To remove everything: delete this folder ($ROOT)."
+}
+
 # ----------------------------------------------------------------------------- 20
 cmd_help() {
   cat <<EOF
@@ -360,6 +387,7 @@ Usage: ./manage.sh [command] [-y]      (no command = interactive menu; -y = assu
   status           Service status                        open         Show/open web & API URLs
   logs [svc]       Follow logs                           test [backend|frontend|firmware|all]
   diag             Diagnostics (secrets redacted)        reset        Remove demo data / reset data (confirms)
+  uninstall        Remove containers / images / data (levels, confirms)
   help             This help
 
 Exit codes: 0 ok, 1 failure, 2 usage, 3 missing prerequisite, 4 aborted.
@@ -387,6 +415,7 @@ ${B}Lalit Stock Application${N} - operations menu
   8) View service status             18) Diagnostics (secrets redacted)
   9) Follow logs                     19) Remove demo data / reset data
  10) Run health checks               20) Help / about / disclaimer, then exit
+                                     21) Uninstall / remove application
   q) Quit
 EOF
     local c; read -r -p "Select: " c || exit 0
@@ -394,7 +423,7 @@ EOF
       1) cmd_check || true ;; 2) cmd_env ;; 3) cmd_secrets ;; 4) cmd_build ;; 5) cmd_start ;; 6) cmd_stop ;;
       7) cmd_restart ;; 8) cmd_status ;; 9) cmd_logs || true ;; 10) cmd_health || true ;; 11) cmd_migrate ;;
       12) cmd_seed || true ;; 13) cmd_backup ;; 14) cmd_restore ;; 15) cmd_update ;; 16) cmd_open ;;
-      17) cmd_test || true ;; 18) cmd_diag ;; 19) (cmd_reset) || true ;; 20) cmd_help; exit 0 ;;
+      17) cmd_test || true ;; 18) cmd_diag ;; 19) (cmd_reset) || true ;; 20) cmd_help; exit 0 ;; 21) (cmd_uninstall) || true ;;
       q|Q) exit 0 ;; *) warn "Unknown choice: $c" ;;
     esac
   done
@@ -411,7 +440,7 @@ main() {
     check) cmd_check ;; env) cmd_env ;; secrets) cmd_secrets "$@" ;; build) cmd_build ;; start|up) cmd_start ;;
     stop) cmd_stop ;; restart) cmd_restart ;; status|ps) cmd_status ;; logs) cmd_logs "$@" ;; health) cmd_health ;;
     migrate) cmd_migrate ;; seed) cmd_seed ;; backup) cmd_backup ;; restore) cmd_restore "$@" ;; update) cmd_update ;;
-    open|urls) cmd_open ;; test) cmd_test "$@" ;; diag) cmd_diag ;; reset) cmd_reset ;; help|-h|--help|about) cmd_help ;;
+    open|urls) cmd_open ;; test) cmd_test "$@" ;; diag) cmd_diag ;; reset) cmd_reset ;; uninstall|remove) cmd_uninstall ;; help|-h|--help|about) cmd_help ;;
     *) cmd_help; exit 2 ;;
   esac
 }
