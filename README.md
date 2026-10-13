@@ -329,37 +329,43 @@ Full API reference: [docs/API.md](docs/API.md) and the live OpenAPI UI at `/api/
 | 3 | **4.2" black/white/red** | 400 × 300 landscape | black, white, red | GDEY042Z98 / SSD1683 | `GxEPD2_420c_GDEY042Z98` | `420_bwr` | 60 s (≈25 s refresh) |
 | 4 | **4.2" 4-colour** | 400 × 300 landscape | black, white, red, yellow | GDEY0420F51 / HX8717 | `GxEPD2_420c_GDEY0420F51` | `420_4c` | 66 s (≈30 s refresh) |
 
-All four modules have the same 8-pin header and use the same ESP32 pins:
+All four modules have the same 8-pin header. Two wiring layouts are supported; pick the one you used in the flashing wizard (step 2) or as the third argument of `flash.bat` / `upload.bat` (`standard` or `uart2`):
 
-| E-Paper pin | ESP32 GPIO |
-|---|---|
-| VCC | **3V3 only** |
-| GND | GND |
-| SDA / MOSI | 23 |
-| SCL / SCK | 18 |
-| CS | 5 |
-| D/C | 25 |
-| RES | 26 |
-| BUSY | 4 |
+| E-Paper pin | Cable (WeAct) | 1. Standard (default) | 2. TX2/RX2 (`uart2`) |
+|---|---|---|---|
+| VCC | red | **3V3 only** | **3V3 only** |
+| GND | black | GND | GND |
+| SDA (SPI MOSI) | yellow | GPIO23 | GPIO23 |
+| SCL (SPI clock) | green | GPIO18 | GPIO18 |
+| CS | blue | GPIO5 | GPIO5 |
+| D/C | white | GPIO25 | **TX2 (GPIO17)** |
+| RES | orange | GPIO26 | **RX2 (GPIO16)** |
+| BUSY | purple | GPIO4 | GPIO4 |
 
-**Easiest: the flashing wizard.** Plug in the ESP32 and run `flash_esp32.bat` (Windows, double-click or from a prompt) or `./flash_esp32.sh` (Linux/macOS). It asks three questions and shows a summary before anything is written:
+<p align="center"><img src="ESP32-Epaper-Wiring.png" alt="WeAct 4.2in to ESP32 wiring (TX2/RX2 layout)" width="520"></p>
+
+The TX2/RX2 layout keeps every wire on the left header of a classic ESP32-WROOM-32 DevKit (USB at the top: D4 → RX2 → TX2 → D5). Do not use it on WROVER boards, where GPIO16/17 belong to the PSRAM. If the firmware and the wiring disagree, the panel stays blank and the boot log shows a refresh that "finishes" in a few milliseconds instead of 10-30 s; the boot log prints `[hw] panel ..., wiring ...` so you can check.
+
+**Easiest: the flashing wizard.** Plug in the ESP32 and run `flash_esp32.bat` (Windows, double-click or from a prompt) or `./flash_esp32.sh` (Linux/macOS). It asks four questions and shows a summary before anything is written:
 
 ```text
-Step 1/3 - Which E-Paper module is connected to the ESP32?
+Step 1/4 - Which E-Paper module is connected to the ESP32?
   1. WeAct 2.9in 4-colour        168 x 384 portrait    GDEY029F51H / JD79667  [hardware-verified]
   2. WeAct 4.2in black/white     400 x 300 landscape   GDEY042T81 / SSD1683   fast refresh, ~32 s pages
   3. WeAct 4.2in black/white/red 400 x 300 landscape   GDEY042Z98 / SSD1683   ~60 s pages
   4. WeAct 4.2in 4-colour        400 x 300 landscape   GDEY0420F51 / HX8717   ~66 s pages
-Step 2/3 - What do you want to flash?   1. Lalit Stock firmware   2. Display test (Hello World)
-Step 3/3 - Which serial port is the ESP32 on?   1. COM3  serial  Serial Port (USB)
+Step 2/4 - How is the module wired to the ESP32?   1. Standard (D/C 25, RES 26)   2. TX2/RX2 (D/C 17, RES 16)
+Step 3/4 - What do you want to flash?   1. Lalit Stock firmware   2. Display test (Hello World)
+Step 4/4 - Which serial port is the ESP32 on?   1. COM3  serial  Serial Port (USB)
   Module : WeAct 4.2in black/white/red, 400x300   (build 420_bwr)
+  Wiring : TX2/RX2, D/C 17, RES 16
 Proceed? [Y/n]
 ```
 
 Choose the **same module** when you register the device in the web admin (step 3).
 
-1. **Check the display first:** run the wizard and choose *Display test*, or `upload.bat COM3 <build>` / `./upload.sh [port] <build>` (for example `upload.bat COM3 420_bwr`). It flashes the Hello World sketch in `ESP32_EPaper_Test/` for that module. Continue only when it shows on the panel.
-2. **Flash the firmware:** run the wizard and choose *Lalit Stock firmware*, or `firmware\flash.bat COM3 <build>` (Windows) / `firmware/flash.sh [/dev/ttyUSB0] <build>` (Linux/macOS), where `<build>` is `290_4c` (default), `420_bw`, `420_bwr` or `420_4c`. With no port, the Linux script uses the first `/dev/ttyUSB*` or `/dev/ttyACM*`. Your user must be in the `dialout` group (`sudo usermod -aG dialout $USER`, then log in again). Set `NO_MONITOR=1` to skip the serial monitor. Either script installs the ESP32 core and libraries, compiles with `PartitionScheme=min_spiffs`, uploads and opens the serial monitor. Manual equivalent:
+1. **Check the display first:** run the wizard and choose *Display test*, or `upload.bat COM3 <build> [wiring]` / `./upload.sh [port] <build> [wiring]` (for example `upload.bat COM3 420_bwr uart2`). It flashes the Hello World sketch in `ESP32_EPaper_Test/` for that module. Continue only when it shows on the panel.
+2. **Flash the firmware:** run the wizard and choose *Lalit Stock firmware*, or `firmware\flash.bat COM3 <build> [wiring]` (Windows) / `firmware/flash.sh [/dev/ttyUSB0] <build> [wiring]` (Linux/macOS), where `<build>` is `290_4c` (default), `420_bw`, `420_bwr` or `420_4c` and `[wiring]` is `standard` (default) or `uart2`. With no port, the Linux script uses the first `/dev/ttyUSB*` or `/dev/ttyACM*`. Your user must be in the `dialout` group (`sudo usermod -aG dialout $USER`, then log in again). Set `NO_MONITOR=1` to skip the serial monitor. Either script installs the ESP32 core and libraries, compiles with `PartitionScheme=min_spiffs`, uploads and opens the serial monitor. Manual equivalent:
    ```bash
    arduino-cli compile --fqbn esp32:esp32:esp32:PartitionScheme=min_spiffs \
      --build-property "compiler.cpp.extra_flags=-DLS_PANEL=LS_PANEL_420_BWR" firmware/LalitStockFirmware
@@ -438,6 +444,7 @@ Common problems, from real deployments. More in [docs/TROUBLESHOOTING.md](docs/T
 | `HTTP 403` / `API key rejected` | The key is not **bound to a device**, or it is bound to a different device ID, revoked or expired. Create the key from the device's row in **E-Paper Devices**. |
 | `HTTP 401` | The key is mistyped or was revoked. Keys are shown only once, so create a new one. |
 | TLS / handshake error with `https://<ip>:5175` | The ESP32 does not trust Caddy's local CA. Use `http://<pc-ip>:<DEVICE_LAN_PORT>` on a LAN, or a real domain with Let's Encrypt. |
+| Panel stays blank; boot log shows `_Update_... : 5` (a refresh "finishing" in milliseconds) | The firmware's wiring does not match the cables (most often D/C and RES). Reflash with the right wiring option: *standard* (D/C 25, RES 26) or *TX2/RX2* (D/C 17, RES 16). The boot log line `[hw] panel ..., wiring ...` shows what was built. |
 | 4.2" panel blank, garbled, or only half drawn | The firmware was built for another module. Run the wizard again and pick the module printed on the flex cable; check with the *Display test* first. |
 | `invalid response: layout is not 400x300` (or `168x384`) | The server laid out pages for a different panel. Update the server (`./manage.sh update`); the device sends its panel with every fetch. A cached page from the previous panel is discarded after reflashing. |
 | Device card says "registered as … but the device runs firmware for …" | The module chosen at registration differs from the flashed firmware. The device's own panel is used; edit the device (**Configure**) or reflash with the matching module. |

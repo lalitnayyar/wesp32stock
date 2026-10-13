@@ -127,6 +127,7 @@ void setup() {
   Serial.begin(115200);
   delay(300);
   Serial.println("\nLalit Stock Application firmware " FW_VERSION " - not financial advice");
+  Serial.println("[hw] panel " LS_PANEL_PROFILE " (" L_ID "), wiring " LS_WIRING_NAME);
   pinMode(RECOVERY_BUTTON, INPUT_PULLUP);
   g_mutex = xSemaphoreCreateMutex();
   initWatchdog();

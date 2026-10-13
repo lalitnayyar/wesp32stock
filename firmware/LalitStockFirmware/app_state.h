@@ -10,11 +10,28 @@
 
 #define FW_VERSION "1.1.0"
 
-// ---- wiring (confirmed on the WeAct 2.9" 4C; the WeAct 4.2" modules use the same 8-pin header and pins).
-// The panel driver is chosen at compile time with LS_PANEL (see epaper.cpp and shared_contract.h).
+// ---- E-Paper panel: driver chosen with LS_PANEL (see epaper.cpp and shared_contract.h).
+// Wiring (compile time, LS_WIRING; flash_esp32 wizard or flash.bat COMx <build> <wiring>):
+//   1 standard  BUSY 4, RES 26, D/C 25, CS 5, SCK 18, MOSI 23   (confirmed on the WeAct 2.9" 4C)
+//   2 uart2     BUSY 4, RES 16 (RX2), D/C 17 (TX2), CS 5, SCK 18, MOSI 23   (ESP32-Epaper-Wiring.png)
+// GPIO16/17 are free on ESP32-WROOM-32 DevKits; on WROVER boards they are used by PSRAM, so use standard there.
+#define LS_WIRING_STANDARD 1
+#define LS_WIRING_UART2 2
+#ifndef LS_WIRING
+#define LS_WIRING LS_WIRING_STANDARD
+#endif
 #define EPD_BUSY 4
+#if LS_WIRING == LS_WIRING_UART2
+#define EPD_RST 16
+#define EPD_DC 17
+#define LS_WIRING_NAME "uart2 (RES 16, D/C 17)"
+#elif LS_WIRING == LS_WIRING_STANDARD
 #define EPD_RST 26
 #define EPD_DC 25
+#define LS_WIRING_NAME "standard (RES 26, D/C 25)"
+#else
+#error "Unknown LS_WIRING: use LS_WIRING_STANDARD or LS_WIRING_UART2"
+#endif
 #define EPD_CS 5
 #define EPD_SCK 18
 #define EPD_MOSI 23

@@ -6,7 +6,7 @@
 //   LS_PANEL_420_BW  WeAct 4.2" black/white, 400 x 300, GDEY042T81 / SSD1683
 //   LS_PANEL_420_BWR WeAct 4.2" black/white/red, 400 x 300, GDEY042Z98 / SSD1683
 //   LS_PANEL_420_4C  WeAct 4.2" 4-colour, 400 x 300, GDEY0420F51 / HX8717
-// All modules use the same 8-pin header and the same ESP32 pins below.
+// All modules use the same 8-pin header; the ESP32 pins depend on LS_WIRING below.
 
 #include <SPI.h>
 
@@ -18,12 +18,30 @@
 #define LS_PANEL LS_PANEL_290_4C
 #endif
 
-#define EPD_BUSY  4
-#define EPD_RST   26
-#define EPD_DC    25
-#define EPD_CS    5
-#define EPD_SCK   18
-#define EPD_MOSI  23
+// Wiring (compile time, LS_WIRING; flash_esp32 wizard or flash.bat COMx <build> <wiring>):
+//   1 standard  BUSY 4, RES 26, D/C 25, CS 5, SCK 18, MOSI 23   (confirmed on the WeAct 2.9" 4C)
+//   2 uart2     BUSY 4, RES 16 (RX2), D/C 17 (TX2), CS 5, SCK 18, MOSI 23   (ESP32-Epaper-Wiring.png)
+// GPIO16/17 are free on ESP32-WROOM-32 DevKits; on WROVER boards they are used by PSRAM, so use standard there.
+#define LS_WIRING_STANDARD 1
+#define LS_WIRING_UART2 2
+#ifndef LS_WIRING
+#define LS_WIRING LS_WIRING_STANDARD
+#endif
+#define EPD_BUSY 4
+#if LS_WIRING == LS_WIRING_UART2
+#define EPD_RST 16
+#define EPD_DC 17
+#define LS_WIRING_NAME "uart2 (RES 16, D/C 17)"
+#elif LS_WIRING == LS_WIRING_STANDARD
+#define EPD_RST 26
+#define EPD_DC 25
+#define LS_WIRING_NAME "standard (RES 26, D/C 25)"
+#else
+#error "Unknown LS_WIRING: use LS_WIRING_STANDARD or LS_WIRING_UART2"
+#endif
+#define EPD_CS 5
+#define EPD_SCK 18
+#define EPD_MOSI 23
 
 #if LS_PANEL == LS_PANEL_290_4C
 #include <GxEPD2_4C.h>
@@ -82,6 +100,8 @@ void drawTestScreen() {
 
     display.setCursor(10, 110);
     display.print("E-Paper Test: " PANEL_NAME);
+    display.setCursor(10, 150);
+    display.print("Wiring: " LS_WIRING_NAME);
 
     display.setTextColor(COLOR_OK);
     display.setCursor(10, 130);
@@ -97,7 +117,7 @@ void drawTestScreen() {
 void setup() {
   Serial.begin(115200);
   delay(1000);
-  Serial.println("ESP32 E-PAPER TEST (" PANEL_NAME ")");
+  Serial.println("ESP32 E-PAPER TEST (" PANEL_NAME ", wiring " LS_WIRING_NAME ")");
   SPI.begin(EPD_SCK, -1, EPD_MOSI, EPD_CS);
   Serial.println("Initializing E-Paper...");
   display.init(115200);

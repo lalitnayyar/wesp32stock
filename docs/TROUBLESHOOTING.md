@@ -33,6 +33,7 @@
 | Upload stuck at `Connecting...` | Hold BOOT until the upload starts. Close the serial monitor. |
 | `Sketch too big` | Use `PartitionScheme=min_spiffs` (`firmware\flash.bat` does this). |
 | Blank screen | Wiring, 3V3, and the driver for your module. Run `flash_esp32` → *Display test* (or `upload.bat COM3 <build>`) first. |
+| Panel blank, boot log `_Update_... : 5` (milliseconds) | Wiring option does not match the cables (usually D/C and RES). Reflash with *standard* (D/C 25, RES 26) or *TX2/RX2* (D/C 17, RES 16). |
 | 4.2" panel blank, garbled or half drawn | Firmware built for another module. Reflash with the module printed on the flex cable (`flash_esp32`, options 2-4). |
 | `invalid response: layout is not ...` | Server and device disagree on the panel. Update the server; the device sends its panel with every fetch. |
 | `API:ERR` + "API key rejected" | The key is revoked/expired, lacks a scope, or isn't bound to a registered device. Create keys from the device's row in **E-Paper Devices**, which binds them automatically. |

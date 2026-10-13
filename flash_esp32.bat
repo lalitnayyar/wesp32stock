@@ -27,7 +27,7 @@ echo   Lalit Stock Application - ESP32 flashing wizard
 echo   Informational display only. Not financial advice.
 echo ==================================================================
 echo.
-echo Step 1/3 - Which E-Paper module is connected to the ESP32?
+echo Step 1/4 - Which E-Paper module is connected to the ESP32?
 echo.
 echo   1. WeAct 2.9in 4-colour       168 x 384 portrait    GDEY029F51H / JD79667  [hardware-verified]
 echo   2. WeAct 4.2in black/white    400 x 300 landscape   GDEY042T81 / SSD1683   fast refresh, ~32 s pages
@@ -52,7 +52,25 @@ if not defined PANEL (
 )
 
 echo.
-echo Step 2/3 - What do you want to flash?
+echo Step 2/4 - How is the module wired to the ESP32?  (BUSY 4, CS 5, SCK 18, MOSI 23 in both)
+echo.
+echo   1. Standard          D/C -^> GPIO25   RES -^> GPIO26          (the 2.9in desk unit)
+echo   2. TX2/RX2           D/C -^> TX2 (GPIO17)   RES -^> RX2 (GPIO16)   (ESP32-Epaper-Wiring.png)
+echo.
+:ask_wiring
+set "WSEL="
+set /p "WSEL=Select wiring [1-2, default 1]: "
+if "%WSEL%"=="" set "WSEL=1"
+if "%WSEL%"=="1" (set "WIRING=standard" & set "WIRING_NAME=standard, D/C 25, RES 26")
+if "%WSEL%"=="2" (set "WIRING=uart2" & set "WIRING_NAME=TX2/RX2, D/C 17, RES 16")
+if not defined WIRING (
+    echo   Please enter 1 or 2.
+    call :retry || exit /b 2
+    goto ask_wiring
+)
+
+echo.
+echo Step 3/4 - What do you want to flash?
 echo.
 echo   1. Lalit Stock firmware        normal use: setup portal, portfolio pages, admin page
 echo   2. Display test (Hello World)  recommended first on a new module: checks wiring and driver
@@ -70,7 +88,7 @@ if not defined SCRIPT (
 )
 
 echo.
-echo Step 3/3 - Which serial port is the ESP32 on?
+echo Step 4/4 - Which serial port is the ESP32 on?
 echo.
 set "N=0"
 set "PORTS_FILE=%TEMP%\lalitstock_ports.txt"
@@ -107,6 +125,7 @@ if errorlevel 1 (
 echo.
 echo ------------------------------------------------------------------
 echo   Module : %PANEL_NAME%   (build %PANEL%)
+echo   Wiring : %WIRING_NAME%
 echo   Flash  : %WHAT_NAME%
 echo   Port   : %PORT%
 echo ------------------------------------------------------------------
@@ -124,7 +143,7 @@ if /i "%GO%"=="no" (
     exit /b 0
 )
 
-call %SCRIPT% %PORT% %PANEL%
+call %SCRIPT% %PORT% %PANEL% %WIRING%
 set "RC=%errorlevel%"
 if not "%RC%"=="0" (
     echo.

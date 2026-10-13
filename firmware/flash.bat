@@ -4,7 +4,8 @@ cd /d "%~dp0"
 
 rem Lalit Stock Application - compile and flash the ESP32 E-Paper firmware, then open the serial monitor.
 rem Owner: Lalit Nayyar. Not financial advice.
-rem Usage: flash.bat [COMx] [PANEL]   (defaults: COM3, 290_4c)
+rem Usage: flash.bat [COMx] [PANEL] [WIRING]   (defaults: COM3, 290_4c, standard)
+rem   WIRING standard (D/C 25, RES 26) | uart2 (D/C TX2/GPIO17, RES RX2/GPIO16, see ESP32-Epaper-Wiring.png)
 rem   PANEL  290_4c   WeAct 2.9in 4-colour (default)
 rem          420_bw   WeAct 4.2in black/white      400x300
 rem          420_bwr  WeAct 4.2in black/white/red  400x300
@@ -23,6 +24,15 @@ if /i "%PANEL%"=="420_bwr" set "LS_PANEL=LS_PANEL_420_BWR"
 if /i "%PANEL%"=="420_4c" set "LS_PANEL=LS_PANEL_420_4C"
 if "%LS_PANEL%"=="" (
     echo Unknown panel "%PANEL%". Use 290_4c, 420_bw, 420_bwr or 420_4c.
+    exit /b 2
+)
+set "WIRING=%~3"
+if "%WIRING%"=="" set "WIRING=standard"
+set "LS_WIRING="
+if /i "%WIRING%"=="standard" set "LS_WIRING=LS_WIRING_STANDARD"
+if /i "%WIRING%"=="uart2" set "LS_WIRING=LS_WIRING_UART2"
+if "%LS_WIRING%"=="" (
+    echo Unknown wiring "%WIRING%". Use standard ^(D/C 25, RES 26^) or uart2 ^(D/C TX2/17, RES RX2/16^).
     exit /b 2
 )
 
@@ -48,8 +58,8 @@ for %%L in ("GxEPD2" "Adafruit GFX Library" "ArduinoJson") do (
 )
 
 echo.
-echo Compiling %SKETCH% for %FQBN%, panel %PANEL%...
-"%ARDUINO_CLI%" compile --fqbn %FQBN% --build-property "compiler.cpp.extra_flags=-DLS_PANEL=%LS_PANEL%" %SKETCH%
+echo Compiling %SKETCH% for %FQBN%, panel %PANEL%, wiring %WIRING%...
+"%ARDUINO_CLI%" compile --fqbn %FQBN% --build-property "compiler.cpp.extra_flags=-DLS_PANEL=%LS_PANEL% -DLS_WIRING=%LS_WIRING%" %SKETCH%
 if errorlevel 1 (
     echo Compile failed.
     exit /b 1

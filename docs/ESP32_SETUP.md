@@ -13,7 +13,12 @@ ESP32-WROOM-32 (board profile *ESP32 Dev Module*) + one of four WeAct Studio E-P
 | 3 | **4.2" black/white/red** | 400 × 300 landscape | black, white, red | GDEY042Z98 / SSD1683 | `GxEPD2_420c_GDEY042Z98` | `420_bwr` | 60 s (≈25 s refresh) |
 | 4 | **4.2" 4-colour** | 400 × 300 landscape | black, white, red, yellow | GDEY0420F51 / HX8717 | `GxEPD2_420c_GDEY0420F51` | `420_4c` | 66 s (≈30 s refresh) |
 
-Only the 2.9" module is verified on hardware so far; the 4.2" timings come from the GxEPD2 1.6.9 driver sources (see [HARDWARE_VERIFICATION.md](HARDWARE_VERIFICATION.md)). All modules share the same wiring (3V3 only): BUSY → GPIO4, RES → GPIO26, D/C → GPIO25, CS → GPIO5, SCL/SCK → GPIO18, SDA/MOSI → GPIO23. Full table: [../ESP32_WeAct_2.9_EPaper.md](../ESP32_WeAct_2.9_EPaper.md). Run the display-only test first: `upload.bat COM3 <build>` or the wizard's *Display test* option.
+Only the 2.9" module is verified on hardware so far; the 4.2" timings come from the GxEPD2 1.6.9 driver sources (see [HARDWARE_VERIFICATION.md](HARDWARE_VERIFICATION.md)). Two wiring layouts are supported (3V3 only; BUSY → GPIO4, CS → GPIO5, SCL/SCK → GPIO18, SDA/MOSI → GPIO23 in both):
+
+- **standard** (default): RES → GPIO26, D/C → GPIO25.
+- **uart2**: RES → RX2 (GPIO16), D/C → TX2 (GPIO17), as in [../ESP32-Epaper-Wiring.png](../ESP32-Epaper-Wiring.png). Not for WROVER boards (PSRAM uses GPIO16/17).
+
+The wiring is compiled in with `-DLS_WIRING=LS_WIRING_STANDARD|LS_WIRING_UART2` (wizard step 2, or the third argument of the flash scripts) and printed at boot as `[hw] panel ..., wiring ...`. Full table: [../ESP32_WeAct_2.9_EPaper.md](../ESP32_WeAct_2.9_EPaper.md). Run the display-only test first: `upload.bat COM3 <build>` or the wizard's *Display test* option.
 
 ## Build and flash
 
@@ -24,6 +29,7 @@ Only the 2.9" module is verified on hardware so far; the 4.2" timings come from 
 ```bat
 firmware\flash.bat COM3              :: 2.9in 4-colour (default)
 firmware\flash.bat COM3 420_bwr      :: 4.2in black/white/red; also 420_bw, 420_4c
+firmware\flash.bat COM3 420_bwr uart2 :: same, wired D/C -> TX2 (17), RES -> RX2 (16)
 ```
 
 On Linux/macOS: `firmware/flash.sh [/dev/ttyUSB0] [build]` (port auto-detected if omitted or ""; needs `dialout` group membership; `NO_MONITOR=1` skips the monitor).

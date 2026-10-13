@@ -240,6 +240,7 @@ static void handleGetConfig() {
   c["show_benchmarks_page"] = g_cfg.show_benchmarks_page;
   c["orientation"] = L_WIDTH > L_HEIGHT ? "landscape" : "portrait";
   c["panel_build"] = LS_PANEL_BUILD;
+  c["wiring"] = LS_WIRING_NAME;
   c["layout"] = L_ID;
   c["panel_profile"] = g_cfg.panel_profile;
   c["timezone"] = g_cfg.timezone;

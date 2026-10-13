@@ -3,7 +3,8 @@ setlocal enabledelayedexpansion
 cd /d "%~dp0"
 
 rem Compiles and uploads ESP32_EPaper_Test to the ESP32 board, then opens the serial monitor.
-rem Usage: upload.bat [COMx] [PANEL]   (defaults: COM3, 290_4c)
+rem Usage: upload.bat [COMx] [PANEL] [WIRING]   (defaults: COM3, 290_4c, standard)
+rem   WIRING standard (D/C 25, RES 26) | uart2 (D/C TX2/GPIO17, RES RX2/GPIO16)
 rem   PANEL  290_4c | 420_bw | 420_bwr | 420_4c   (WeAct 2.9in 4-colour, or WeAct 4.2in 400x300 variants)
 
 set "FQBN=esp32:esp32:esp32"
@@ -19,6 +20,15 @@ if /i "%PANEL%"=="420_bwr" set "LS_PANEL=LS_PANEL_420_BWR"
 if /i "%PANEL%"=="420_4c" set "LS_PANEL=LS_PANEL_420_4C"
 if "%LS_PANEL%"=="" (
     echo Unknown panel "%PANEL%". Use 290_4c, 420_bw, 420_bwr or 420_4c.
+    exit /b 2
+)
+set "WIRING=%~3"
+if "%WIRING%"=="" set "WIRING=standard"
+set "LS_WIRING="
+if /i "%WIRING%"=="standard" set "LS_WIRING=LS_WIRING_STANDARD"
+if /i "%WIRING%"=="uart2" set "LS_WIRING=LS_WIRING_UART2"
+if "%LS_WIRING%"=="" (
+    echo Unknown wiring "%WIRING%". Use standard ^(D/C 25, RES 26^) or uart2 ^(D/C TX2/17, RES RX2/16^).
     exit /b 2
 )
 
@@ -47,8 +57,8 @@ if errorlevel 1 (
 )
 
 echo.
-echo Compiling %SKETCH% for %FQBN%, panel %PANEL%...
-"%ARDUINO_CLI%" compile --fqbn %FQBN% --build-property "compiler.cpp.extra_flags=-DLS_PANEL=%LS_PANEL%" %SKETCH%
+echo Compiling %SKETCH% for %FQBN%, panel %PANEL%, wiring %WIRING%...
+"%ARDUINO_CLI%" compile --fqbn %FQBN% --build-property "compiler.cpp.extra_flags=-DLS_PANEL=%LS_PANEL% -DLS_WIRING=%LS_WIRING%" %SKETCH%
 if errorlevel 1 (
     echo Compile failed.
     exit /b 1

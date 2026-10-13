@@ -19,7 +19,9 @@
 | 4.2" black/white/red, GDEY042Z98 / SSD1683 | `GxEPD2_3C<GxEPD2_420c_GDEY042Z98, HEIGHT/2>` (`src/gdey3c/`) | 25 000 ms (22 780 001 µs) | K W R | 2 × 7.5 KB, two-pass paging |
 | 4.2" 4-colour, GDEY0420F51 / HX8717 | `GxEPD2_4C<GxEPD2_420c_GDEY0420F51, HEIGHT/2>` (`src/epd4c/`) | 30 000 ms (27 676 925 µs) | K W R Y | 15 KB, two-pass paging |
 
-Same wiring as the 2.9" module. All four firmware builds compile (`arduino-cli compile ... -DLS_PANEL=LS_PANEL_<BUILD>`): about 1.30 MB (66 %) of flash; globals 68.7 KB (2.9") and 67.5 KB (4.2"). Effective page durations for a 10 s request: 32 s, 60 s and 66 s. The profiles are marked `verified: false` until measured on a real module.
+**Measured on the owner's 4.2" black/white/red module** (ESP32-WROOM-32, `uart2` wiring per `ESP32-Epaper-Wiring.png`, firmware 1.1.0): the setup screen refresh took 10 028 003 µs (`_Update_Fast`, GxEPD2's default fast full update for this panel). The profile keeps `full_refresh_ms = 25000` (the driver's timeout and the normal-update ceiling) until the full page set has been checked.
+
+Wiring: either layout (standard D/C 25 / RES 26, or `uart2` D/C 17 / RES 16). All four firmware builds compile (`arduino-cli compile ... -DLS_PANEL=LS_PANEL_<BUILD>`): about 1.30 MB (66 %) of flash; globals 68.7 KB (2.9") and 67.5 KB (4.2"). Effective page durations for a 10 s request: 32 s, 60 s and 66 s. The profiles are marked `verified: false` until measured on a real module.
 
 ## Safe page duration
 
