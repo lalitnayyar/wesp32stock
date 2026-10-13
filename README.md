@@ -72,6 +72,8 @@
 | **Register a device with its E-Paper module** | **Simulator with module selection (4.2" black/white/red)** |
 |---|---|
 | ![Register device](docs/screenshots/register-device-module.png) | ![Simulator 4.2in](docs/screenshots/simulator-420.png) |
+| **Flash ESP32 from the browser (module, wiring, firmware or display test)** | **Wiring used for the 4.2" module (TX2/RX2 option)** |
+| ![Flash ESP32](docs/screenshots/flash-esp32.png) | ![Wiring](ESP32-Epaper-Wiring.png) |
 
 **The 2.9" E-Paper display** (168 × 384 portrait, rendered by the simulator with the firmware's own font and draw-ops):
 
@@ -356,7 +358,7 @@ The TX2/RX2 layout keeps every wire on the left header of a classic ESP32-WROOM-
 
 The page downloads the four flash parts, checks their SHA-256 against the manifest, writes them at 0x1000 / 0x8000 / 0xE000 / 0x10000 (saved Wi-Fi and API settings at 0x9000 are kept unless you tick *Erase all settings*), resets the board and shows its boot log: firmware and panel, **device ID**, setup Wi-Fi name and password, and whether the panel refresh took a real 10-30 s (a refresh of a few milliseconds means the wiring option is wrong). **Register LS-… with this module** opens the Register form pre-filled.
 
-The firmware files are built once on the server with `./manage.sh firmware` (menu 23): it compiles all 16 variants (4 modules × 2 wirings × firmware/test) into `firmware/dist`, which Caddy serves at `/firmware/`. Without arduino-cli on the server it uses a Docker builder image (first run downloads the ESP32 toolchain, about 1 GB). Run it again after `./manage.sh update` when the firmware changed. Web Serial needs HTTPS or `http://localhost`; Firefox and Safari do not support it.
+The firmware files are built once on the server with `./manage.sh firmware` (menu 23): it compiles all 16 variants (4 modules × 2 wirings × firmware/test) into `firmware/dist`, which Caddy serves at `/firmware/`. Without arduino-cli on the server it uses a Docker builder image (first run downloads the ESP32 toolchain; the image uses about 9 GB of disk; free it with `docker rmi lalitstock-fwbuilder` and it is rebuilt when needed). All 16 variants take about 15-20 minutes the first time and are about 14 MB in total. Run it again after `./manage.sh update` when the firmware changed. Web Serial needs HTTPS or `http://localhost`; Firefox and Safari do not support it.
 
 <p align="center"><img src="docs/screenshots/flash-esp32.png" alt="Flash ESP32 page" width="80%"></p>
 

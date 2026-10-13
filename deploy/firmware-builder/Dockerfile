@@ -1,7 +1,7 @@
 # Lalit Stock Application - ESP32 firmware builder for the web flasher (./manage.sh firmware).
 # Owner: Lalit Nayyar <consult@lalit.cloud>. Not financial advice.
 # Build context: deploy/ (for extra-ca). Pinned toolchain = the verified one: esp32 core 3.3.12,
-# GxEPD2 1.6.9, Adafruit GFX 1.12.6, ArduinoJson 7.4.3. First build downloads about 1 GB.
+# GxEPD2 1.6.9, Adafruit GFX 1.12.6, ArduinoJson 7.4.3. The image is about 9 GB (all ESP32 toolchains).
 FROM debian:bookworm-slim
 
 RUN apt-get update \

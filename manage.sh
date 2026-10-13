@@ -527,13 +527,13 @@ cmd_firmware() {  # build every ESP32 variant (module x wiring x firmware/test) 
   else
     [[ "$mode" == local ]] && die "arduino-cli is not installed; drop --local to use the Docker builder" 3
     command -v docker >/dev/null 2>&1 || die "Docker is required for the firmware builder. Run: ./manage.sh check" 3
-    info "Building the firmware builder image (first time downloads the ESP32 toolchain, about 1 GB)"
+    info "Building the firmware builder image (first time downloads the ESP32 toolchain; image about 9 GB)"
     docker build -q -f "$ROOT/deploy/firmware-builder/Dockerfile" -t lalitstock-fwbuilder "$ROOT/deploy" >/dev/null
     info "Compiling all variants in the builder container (JOBS=${JOBS:-2}; a few minutes)"
     docker run --rm -v "$ROOT:/repo" -w /repo --user "$(id -u):$(id -g)" -e HOME=/tmp -e JOBS="${JOBS:-2}" \
       lalitstock-fwbuilder bash tools/build_firmware.sh "${args[@]+"${args[@]}"}"
   fi
-  ok "Firmware ready in firmware/dist. Open the web admin -> Flash ESP32 (Chrome/Edge) to flash a board."
+  info "Firmware ready in firmware/dist. Open the web admin -> Flash ESP32 (Chrome/Edge) to flash a board."
 }
 
 cmd_help() {
