@@ -144,6 +144,7 @@ cd wesp32stock
 
 - Sign in at **https://localhost** with `ADMIN_USERNAME` / `ADMIN_PASSWORD` from `.env`, then change the password under **Settings**.
 - `localhost` uses Caddy's internal CA. Trust it once with `docker compose exec web caddy trust`, or accept the browser warning.
+- Other devices on your network (phone, tablet, another PC) can use **https://&lt;this-machine's-ip&gt;/**. With `LAN_ADDRESS=auto` (the default), `./manage.sh start`/`restart` detects the IP every time it runs. You can also set a fixed IP in `.env`. `./manage.sh open` prints the LAN URL. Those devices warn about Caddy's internal CA certificate. If they cannot connect, allow inbound TCP 443 in the firewall. The Vite dev server is also reachable at `http://<ip>:5173`.
 - Offline demo: set `MARKET_PROVIDER=fixture` in `.env`.
 - Windows: run `manage.sh` from Git Bash. If an antivirus or proxy inspects TLS (for example AVG Web Shield), put its root certificate in `deploy/extra-ca/`. TLS verification is never disabled.
 - VPS / production: see [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md). Set `SITE_ADDRESS` to your domain and Caddy obtains a Let's Encrypt certificate automatically.

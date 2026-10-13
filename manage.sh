@@ -49,7 +49,9 @@ compose() {
     elif command -v docker-compose >/dev/null 2>&1; then DC=(docker-compose)
     else die "Docker Compose not found. Run: ./manage.sh check" 3; fi
   fi
-  "${DC[@]}" --env-file .env "$@"   # relative: we always run from the repo root
+  # The shell value overrides .env, so LAN_ADDRESS=auto reaches Caddy as a real IP.
+  lan_ip >/dev/null  # resolve once in this shell (cached in LAN_IP)
+  LAN_ADDRESS="$LAN_IP" "${DC[@]}" --env-file .env "$@"   # relative: we always run from the repo root
 }
 
 env_get() {  # env_get KEY -> value from .env (no sourcing, no eval)
@@ -81,7 +83,33 @@ rand() { # rand LENGTH
 
 require_env() { [[ -f "$ENV_FILE" ]] || die "No .env file. Run: ./manage.sh env" 3; }
 
-site_url() { local s; s="$(env_get SITE_ADDRESS)"; s="${s:-localhost}"; [[ "$s" == :* ]] && echo "http://localhost${s}" || echo "https://${s}"; }
+site_url() { local s; s="$(env_get SITE_ADDRESS)"; s="${s%%,*}"; s="${s:-localhost}"; [[ "$s" == :* ]] && echo "http://localhost${s}" || echo "https://${s}"; }  # first of a comma-separated list
+
+detect_lan_ip() {  # IPv4 of the interface that holds the default route (Linux, macOS, Git Bash on Windows)
+  local ip="" ifc
+  if command -v ip >/dev/null 2>&1; then
+    ip="$(ip -4 route get 1.1.1.1 2>/dev/null | awk '{for (i = 1; i < NF; i++) if ($i == "src") { print $(i + 1); exit }}')"
+  elif command -v powershell.exe >/dev/null 2>&1; then
+    ip="$(powershell.exe -NoProfile -Command '$r = Get-NetRoute -DestinationPrefix 0.0.0.0/0 -ErrorAction SilentlyContinue | Sort-Object { $_.RouteMetric + (Get-NetIPInterface -InterfaceIndex $_.ifIndex -AddressFamily IPv4).InterfaceMetric } | Select-Object -First 1; if ($r) { (Get-NetIPAddress -InterfaceIndex $r.ifIndex -AddressFamily IPv4 | Select-Object -First 1).IPAddress }' 2>/dev/null | tr -d '\r')"
+  elif command -v route >/dev/null 2>&1 && command -v ipconfig >/dev/null 2>&1; then
+    ifc="$(route -n get default 2>/dev/null | awk '/interface:/ {print $2}')"
+    [[ -n "$ifc" ]] && ip="$(ipconfig getifaddr "$ifc" 2>/dev/null)"
+  fi
+  [[ -z "$ip" ]] && ip="$(hostname -I 2>/dev/null | awk '{print $1}')"
+  [[ "$ip" =~ ^[0-9]+(\.[0-9]+){3}$ ]] && printf '%s' "$ip"
+  return 0
+}
+
+LAN_IP=""
+lan_ip() {  # LAN_ADDRESS from .env; empty or "auto" = detect now (follows DHCP changes); fallback 127.0.0.1
+  if [[ -z "$LAN_IP" ]]; then
+    LAN_IP="$(env_get LAN_ADDRESS)"
+    [[ -z "$LAN_IP" || "$LAN_IP" == auto ]] && LAN_IP="$(detect_lan_ip)"
+    LAN_IP="${LAN_IP:-127.0.0.1}"
+  fi
+  printf '%s' "$LAN_IP"
+}
+lan_url() { local s; s="$(lan_ip)"; [[ "$s" != 127.0.0.1 ]] && echo "https://${s}"; return 0; }
 
 # ----------------------------------------------------------------------------- 1
 cmd_check() {
@@ -111,7 +139,8 @@ cmd_env() {
   fi
   if $ASSUME_YES || [[ ! -t 0 ]]; then return 0; fi
   local key cur new
-  for key in APP_ENV SITE_ADDRESS ACME_EMAIL MARKET_PROVIDER ADMIN_USERNAME HTTP_PORT HTTPS_PORT DEVICE_LAN_BIND DEVICE_LAN_PORT; do
+  echo "  LAN_ADDRESS: 'auto' detects this machine's IP at every start (detected now: $(detect_lan_ip || true)); or enter a fixed IP."
+  for key in APP_ENV SITE_ADDRESS LAN_ADDRESS ACME_EMAIL MARKET_PROVIDER ADMIN_USERNAME HTTP_PORT HTTPS_PORT DEVICE_LAN_BIND DEVICE_LAN_PORT; do
     cur="$(env_get "$key")"
     read -r -p "  $key [$cur]: " new || true
     [[ -n "$new" ]] && env_set "$key" "$new"
@@ -148,9 +177,9 @@ cmd_secrets() {
 
 # ----------------------------------------------------------------------------- 4..9
 cmd_build()   { require_env; info "Building images"; compose build --pull; }
-cmd_start()   { require_env; info "Starting services"; compose up -d; cmd_status; echo; info "Web UI: $(site_url)   API docs: $(site_url)/api/docs"; }
+cmd_start()   { require_env; info "Starting services"; compose up -d; cmd_status; echo; info "Web UI: $(site_url)   API docs: $(site_url)/api/docs"; [[ -z "$(lan_url)" ]] || info "LAN:    $(lan_url)"; }
 cmd_stop()    { require_env; info "Stopping services"; compose stop; }
-cmd_restart() { require_env; info "Restarting services"; compose restart; }
+cmd_restart() { require_env; info "Restarting services"; compose up -d; compose restart; }  # up -d first applies a changed .env / LAN IP
 cmd_status()  { require_env; compose ps; }
 cmd_logs()    { require_env; compose logs -f --tail=200 "${@}"; }
 
@@ -259,8 +288,10 @@ cmd_update() {
 
 # ----------------------------------------------------------------------------- 16
 cmd_open() {
+  lan_ip >/dev/null
   local url; url="$(site_url)"
   echo "Web UI:   $url"; echo "API docs: $url/api/docs"; echo "Health:   $url/api/health"
+  [[ -z "$(lan_url)" ]] || echo "LAN:      $(lan_url)  (other devices will warn about the internal CA certificate)"
   if command -v xdg-open >/dev/null 2>&1; then xdg-open "$url" >/dev/null 2>&1 || true
   elif command -v open >/dev/null 2>&1; then open "$url" || true
   elif command -v cmd.exe >/dev/null 2>&1; then cmd.exe /c start "" "$url" >/dev/null 2>&1 || true; fi
@@ -305,6 +336,7 @@ cmd_diag() {
   docker --version 2>/dev/null || true
   compose version 2>/dev/null || true
   [[ -d .git ]] && echo "git: $(git rev-parse --short HEAD 2>/dev/null) $(git status --porcelain | wc -l | tr -d ' ') uncommitted" || true
+  echo; info "LAN address"; echo "  LAN_ADDRESS=$(env_get LAN_ADDRESS) -> $(lan_ip)"
   echo; info "Services"; compose ps 2>/dev/null || true
   echo; info "Disk"; df -h "$ROOT" | tail -n1
   echo; info "Backups"; ls -1t "$BACKUP_DIR" 2>/dev/null | head -n5 || echo "  none"

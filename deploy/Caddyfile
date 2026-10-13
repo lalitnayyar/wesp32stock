@@ -1,11 +1,14 @@
 # Lalit Stock Application - Caddy reverse proxy. Owner: Lalit Nayyar. Not financial advice.
 # SITE_ADDRESS examples: "localhost" (local HTTPS with Caddy's internal CA),
 # "stock.example.com" (automatic Let's Encrypt on a VPS), ":80" (plain HTTP behind another proxy).
+# LAN_ADDRESS: this machine's LAN IP (e.g. 192.168.1.50) so other devices can open https://<ip>/.
 {
 	email {$ACME_EMAIL:admin@example.com}
+	# Browsers send no SNI when browsing by IP; without this Caddy cannot pick a certificate.
+	default_sni {$LAN_ADDRESS:127.0.0.1}
 }
 
-{$SITE_ADDRESS:localhost} {
+(app) {
 	encode gzip zstd
 	header {
 		Strict-Transport-Security "max-age=31536000"
@@ -28,4 +31,15 @@
 		output stdout
 		format json
 	}
+}
+
+{$SITE_ADDRESS:localhost} {
+	import app
+}
+
+# Access by IP address. Explicit `tls internal` makes Caddy accept SNI-less handshakes for it;
+# kept separate so SITE_ADDRESS still gets automatic Let's Encrypt on a VPS.
+{$LAN_ADDRESS:127.0.0.1} {
+	tls internal
+	import app
 }

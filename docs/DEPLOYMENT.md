@@ -19,6 +19,7 @@ Health: `GET /api/health` (liveness), `GET /api/health/ready` (database + schedu
 ```
 
 - `SITE_ADDRESS=localhost` gives HTTPS through Caddy's internal CA. Trust it once with `docker compose exec web caddy trust`, or accept the browser warning.
+- Other devices on the LAN reach the UI at `https://<pc-ip>/`. `LAN_ADDRESS=auto` is detected by `./manage.sh start`/`restart`; plain `docker compose` needs a fixed IP in `LAN_ADDRESS`. Browsers send no SNI for IP addresses, so the Caddyfile serves the IP in its own `tls internal` site block with `default_sni`.
 - Development without Docker: `cd backend && python -m venv .venv && .venv/bin/pip install -r requirements-dev.txt && DATABASE_URL=sqlite:///./dev.db ADMIN_PASSWORD=... uvicorn app.main:app --reload`, plus `cd frontend && npm ci && npm run dev` (Vite proxies `/api` to `:8000`).
 - ESP32 on your LAN during development: set `DEVICE_LAN_BIND=0.0.0.0` and `DEVICE_LAN_PORT=8000`, then use `http://<pc-ip>:8000` as the device API URL. This is plain HTTP, so use it for development only. The device admin page labels it **INSECURE HTTP**.
 
@@ -51,6 +52,7 @@ See `.env.example`. Keep comments on their own lines (Compose may read inline te
 | `ADMIN_PASSWORD` | ≥ 12 characters. Creates the first admin only. |
 | `MARKET_PROVIDER` | `yahoo` or `fixture`. |
 | `SITE_ADDRESS` | Domain on a VPS. `localhost` locally. `:80` behind another TLS proxy. |
+| `LAN_ADDRESS` | IP that LAN devices use (`https://<ip>/`, Caddy internal CA). `auto` (default) = detected by `manage.sh` on each start/restart; or a fixed IP. |
 | `COOKIE_SECURE` | Keep `true` behind HTTPS. |
 
 ## Scaling notes

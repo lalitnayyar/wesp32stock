@@ -52,6 +52,7 @@ services:
       - backend
     environment:
       SITE_ADDRESS: ${SITE_ADDRESS:-localhost}
+      LAN_ADDRESS: ${LAN_ADDRESS:-127.0.0.1}
       ACME_EMAIL: ${ACME_EMAIL:-consult@lalit.cloud}
     ports:
       - "${HTTP_PORT:-80}:80"

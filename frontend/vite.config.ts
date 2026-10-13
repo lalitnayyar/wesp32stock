@@ -9,6 +9,7 @@ export default defineConfig({
   resolve: { alias: { "@shared": path.resolve(__dirname, "../shared") } },
   server: {
     port: 5173,
+    host: true, // listen on all interfaces so LAN devices can open http://<pc-ip>:5173
     fs: { allow: [".."] },
     proxy: { "/api": { target: process.env.VITE_API_TARGET || "http://localhost:8000", changeOrigin: false } },
   },
