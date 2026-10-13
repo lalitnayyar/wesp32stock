@@ -30,7 +30,7 @@ button.alt{background:#666}button.warn{background:#b00}.kv{display:grid;grid-tem
 <button id="bpause" onclick="ctl('pause')">Pause</button><button id="bresume" onclick="ctl('resume')">Resume</button>
 <button onclick="ctl('next')">Next page</button>
 <span style="display:inline-block;width:120px"><input id="gopage" type="number" min="1" placeholder="Page #"></span><button onclick="ctl('goto',document.getElementById('gopage').value)">Go to page</button>
-<p style="font-size:12px">Manual changes are queued behind the panel refresh guard: a full refresh of this 4-colour panel takes about 21-25 s.</p></section>
+<p style="font-size:12px">Manual changes are queued behind the panel refresh guard (see the minimum gap below; colour panels take about 20-30 s per full refresh).</p></section>
 <section><h2>Refresh safety</h2><div class="kv"><span>Requested page duration</span><b id="req">-</b>
 <span>Effective hardware-safe duration</span><b id="eff">-</b><span>Panel profile</span><span id="prof">-</span></div><p id="reason" class="box"></p></section>
 <section><h2>Status</h2><div class="kv" id="status"></div></section>
@@ -238,7 +238,9 @@ static void handleGetConfig() {
   c["rows_per_page"] = g_cfg.rows_per_page;
   c["show_summary_page"] = g_cfg.show_summary_page;
   c["show_benchmarks_page"] = g_cfg.show_benchmarks_page;
-  c["orientation"] = "portrait";
+  c["orientation"] = L_WIDTH > L_HEIGHT ? "landscape" : "portrait";
+  c["panel_build"] = LS_PANEL_BUILD;
+  c["layout"] = L_ID;
   c["panel_profile"] = g_cfg.panel_profile;
   c["timezone"] = g_cfg.timezone;
   c["posix_tz"] = g_cfg.posix_tz;
@@ -249,8 +251,7 @@ static void handleGetConfig() {
   s["admin_pass"] = g_cfg.admin_pass[0] != 0;
   s["root_ca"] = g_cfg.root_ca.length() > 0;
   JsonArray p = d["panel_profiles"].to<JsonArray>();
-  for (int i = 0; i < PANEL_PROFILE_COUNT; i++)
-    if (!PANEL_PROFILES[i].simulation_only) p.add(PANEL_PROFILES[i].name);
+  p.add(LS_PANEL_PROFILE);  // the compiled panel; other panels need a different firmware build
   p.add("UNKNOWN");
   sendJson(200, d);
 }
@@ -310,10 +311,11 @@ static void handlePostConfig() {
   if (server.hasArg("panel_profile")) {
     String p = server.arg("panel_profile");
     const PanelProfile* prof = ls::findProfile(p.c_str());
-    if ((prof && !prof->simulation_only) || p == "UNKNOWN") strlcpy(g_cfg.panel_profile, p.c_str(), sizeof g_cfg.panel_profile);
-    else warn["panel_profile"] = "unsupported or simulation-only profile; not changed";
+    if ((prof && p == LS_PANEL_PROFILE) || p == "UNKNOWN") strlcpy(g_cfg.panel_profile, p.c_str(), sizeof g_cfg.panel_profile);
+    else warn["panel_profile"] = "this firmware is built for " LS_PANEL_PROFILE "; reflash to use another panel";
   }
-  if (server.hasArg("orientation") && server.arg("orientation") != "portrait") warn["orientation"] = "only portrait is supported";
+  if (server.hasArg("orientation") && server.arg("orientation") != (L_WIDTH > L_HEIGHT ? "landscape" : "portrait"))
+    warn["orientation"] = "orientation is fixed by the panel (" L_ID ")";
   setStr("timezone", g_cfg.timezone, sizeof g_cfg.timezone, false, warn);
   setStr("posix_tz", g_cfg.posix_tz, sizeof g_cfg.posix_tz, false, warn);
   setStr("ntp_server", g_cfg.ntp_server, sizeof g_cfg.ntp_server, false, warn);

@@ -11,6 +11,16 @@
 | Full refresh time | GxEPD2 1.6.9 `src/epd4c/GxEPD2_290c_GDEY029F51H.h`: `full_refresh_time = 25000` ms ("e.g. 21428295us"), `partial_refresh_time = 25000` ms, `hasFastPartialUpdate = false` |
 | Application firmware compiles | `arduino-cli compile --fqbn esp32:esp32:esp32:PartitionScheme=min_spiffs`: about 1.30 MB of 1.97 MB (66 %), about 69 KB of RAM used by globals |
 
+## WeAct 4.2" 400 × 300 modules (driver sources only; not yet on hardware)
+
+| Module | Driver (GxEPD2 1.6.9) | `full_refresh_time` | Palette | Buffer |
+|---|---|---|---|---|
+| 4.2" black/white, GDEY042T81 / SSD1683 | `GxEPD2_BW<GxEPD2_420_GDEY042T81, HEIGHT>` (`src/gdey/`) | 1200 ms (measured 1 140 000 µs in the source) | K W | full, 15 KB |
+| 4.2" black/white/red, GDEY042Z98 / SSD1683 | `GxEPD2_3C<GxEPD2_420c_GDEY042Z98, HEIGHT/2>` (`src/gdey3c/`) | 25 000 ms (22 780 001 µs) | K W R | 2 × 7.5 KB, two-pass paging |
+| 4.2" 4-colour, GDEY0420F51 / HX8717 | `GxEPD2_4C<GxEPD2_420c_GDEY0420F51, HEIGHT/2>` (`src/epd4c/`) | 30 000 ms (27 676 925 µs) | K W R Y | 15 KB, two-pass paging |
+
+Same wiring as the 2.9" module. All four firmware builds compile (`arduino-cli compile ... -DLS_PANEL=LS_PANEL_<BUILD>`): about 1.30 MB (66 %) of flash; globals 68.7 KB (2.9") and 67.5 KB (4.2"). Effective page durations for a 10 s request: 32 s, 60 s and 66 s. The profiles are marked `verified: false` until measured on a real module.
+
 ## Safe page duration
 
 ```
@@ -22,6 +32,10 @@ effective   = max(requested, min_safe)              → requested 10 s ⇒ effec
 Partial refresh is not used. It is no faster on this panel and is not used to work around four-colour limits. Unknown panels use a 180 s fallback.
 
 ## Still requires hardware-in-the-loop verification
+
+4.2" modules (for each variant you own): run `flash_esp32` → *Display test*, then the firmware; confirm landscape orientation, colours (B/W shows no red/yellow), all three pages, and the "last refresh ms" against the table above. Then set `verified: true` (and adjust `full_refresh_ms` if needed) in `shared/panel_profiles.json` and run `tools/gen_shared.py`.
+
+2.9" module:
 
 - [ ] Flash `firmware/LalitStockFirmware` and confirm portrait rendering of all three fixture/live pages (layout, colours, arrows `0x1E`/`0x1F`).
 - [ ] Measure the actual full-refresh duration on the device (shown as "last refresh ms" on the admin page) at room temperature and at the coldest and hottest expected temperatures.

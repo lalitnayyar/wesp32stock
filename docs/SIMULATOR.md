@@ -4,8 +4,9 @@ Open **E-Paper Simulator** in the web admin. The page is labelled **"Simulation 
 
 ## What it reproduces
 
-- An exact **168 × 384** canvas, plus an enlarged copy (×1–×3, nearest-neighbour scaling, so no reflow). Both are drawn with the firmware's GFX font and the same draw-ops.
-- The same payload as the device. **Fixture mode** uses `shared/fixtures/dashboard_3page.json` and needs no API key. **Live mode** builds exactly what `/api/v1/device/dashboard` would return for a chosen portfolio, authorised by your admin session.
+- An **E-Paper module** selector with the same four options as Register device and the flashing wizard (2.9" 4-colour; 4.2" black/white, black/white/red, 4-colour). Switching reboots the simulation with that panel's layout, palette and refresh timing.
+- An exact **168 × 384** or **400 × 300** canvas, plus an enlarged copy (×1–×3, nearest-neighbour scaling, so no reflow). Both are drawn with the firmware's GFX font and the same draw-ops.
+- The same payload as the device. **Fixture mode** uses `shared/fixtures/dashboard_3page.json` (or `dashboard_3page_<build>.json` for a 4.2" module) and needs no API key. **Live mode** builds exactly what `/api/v1/device/dashboard` would return for a chosen portfolio, authorised by your admin session.
 - The same shared config schema, validation ranges, rotation state machine, refresh gate and safe-refresh calculation as the firmware (`frontend/src/sim/rules.ts`, tested against `shared/test_vectors`).
 - Independent clocks: fetch timer (with the firmware's backoff), rotation timer, heartbeat counter and NTP. Diagnostics show that page changes never increase the fetch count.
 - Every ESP32 admin setting: device ID and name, Wi-Fi SSID with a simulated scan, API URL, a masked API key (only a "key set" flag is stored), fetch interval, timeout, rotation, requested duration, selected page, rows, summary/benchmark pages, reset on new data, orientation, panel profile, timezone, POSIX TZ and NTP server.

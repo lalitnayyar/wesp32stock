@@ -4,12 +4,27 @@ cd /d "%~dp0"
 
 rem Lalit Stock Application - compile and flash the ESP32 E-Paper firmware, then open the serial monitor.
 rem Owner: Lalit Nayyar. Not financial advice.
-rem Usage: flash.bat [COMx]   (defaults to COM3)
+rem Usage: flash.bat [COMx] [PANEL]   (defaults: COM3, 290_4c)
+rem   PANEL  290_4c   WeAct 2.9in 4-colour (default)
+rem          420_bw   WeAct 4.2in black/white      400x300
+rem          420_bwr  WeAct 4.2in black/white/red  400x300
+rem          420_4c   WeAct 4.2in 4-colour         400x300
 
 set "FQBN=esp32:esp32:esp32:PartitionScheme=min_spiffs"
 set "SKETCH=LalitStockFirmware"
 set "PORT=%~1"
 if "%PORT%"=="" set "PORT=COM3"
+set "PANEL=%~2"
+if "%PANEL%"=="" set "PANEL=290_4c"
+set "LS_PANEL="
+if /i "%PANEL%"=="290_4c" set "LS_PANEL=LS_PANEL_290_4C"
+if /i "%PANEL%"=="420_bw" set "LS_PANEL=LS_PANEL_420_BW"
+if /i "%PANEL%"=="420_bwr" set "LS_PANEL=LS_PANEL_420_BWR"
+if /i "%PANEL%"=="420_4c" set "LS_PANEL=LS_PANEL_420_4C"
+if "%LS_PANEL%"=="" (
+    echo Unknown panel "%PANEL%". Use 290_4c, 420_bw, 420_bwr or 420_4c.
+    exit /b 2
+)
 
 set "ARDUINO_CLI=arduino-cli"
 where arduino-cli >nul 2>&1
@@ -33,8 +48,8 @@ for %%L in ("GxEPD2" "Adafruit GFX Library" "ArduinoJson") do (
 )
 
 echo.
-echo Compiling %SKETCH% for %FQBN%...
-"%ARDUINO_CLI%" compile --fqbn %FQBN% %SKETCH%
+echo Compiling %SKETCH% for %FQBN%, panel %PANEL%...
+"%ARDUINO_CLI%" compile --fqbn %FQBN% --build-property "compiler.cpp.extra_flags=-DLS_PANEL=%LS_PANEL%" %SKETCH%
 if errorlevel 1 (
     echo Compile failed.
     exit /b 1

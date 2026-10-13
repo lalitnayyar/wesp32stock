@@ -43,11 +43,32 @@ struct PanelProfile { const char* name; const char* label; uint32_t full_refresh
 #define PANEL_FALLBACK_S 180
 static const PanelProfile PANEL_PROFILES[] = {
   {"JD79667_GDEY029F51H", "WeAct 2.9in 4C, GDEY029F51H / JD79667 (GxEPD2_290c_GDEY029F51H)", 25000, 20, 30, true, false},
+  {"SSD1683_GDEY042T81", "WeAct 4.2in B/W, GDEY042T81 / SSD1683 (GxEPD2_420_GDEY042T81)", 1200, 20, 30, false, false},
+  {"SSD1683_GDEY042Z98", "WeAct 4.2in B/W/R, GDEY042Z98 / SSD1683 (GxEPD2_420c_GDEY042Z98)", 25000, 20, 30, false, false},
+  {"HX8717_GDEY0420F51", "WeAct 4.2in 4C, GDEY0420F51 / HX8717 (GxEPD2_420c_GDEY0420F51)", 30000, 20, 30, false, false},
   {"TEST_FAST_PANEL", "Hypothetical fast panel (simulation/test only)", 2000, 20, 5, false, true},
 };
-#define PANEL_PROFILE_COUNT 2
+#define PANEL_PROFILE_COUNT 5
 
-// ---- layout (shared/layout.json)
+// ---- panel selection (compile time): build with -DLS_PANEL=LS_PANEL_<BUILD> (flash.bat COMx <build>).
+// Each panel brings its layout (shared/layout*.json) and palette (K black, W white, R red, Y yellow).
+#define LS_PANEL_290_4C 1  // JD79667_GDEY029F51H
+#define LS_PANEL_420_BW 2  // SSD1683_GDEY042T81
+#define LS_PANEL_420_BWR 3  // SSD1683_GDEY042Z98
+#define LS_PANEL_420_4C 4  // HX8717_GDEY0420F51
+#ifndef LS_PANEL
+#define LS_PANEL LS_PANEL_290_4C
+#endif
+#if LS_PANEL == LS_PANEL_290_4C
+#define LS_PANEL_PROFILE "JD79667_GDEY029F51H"
+#define LS_PANEL_BUILD "290_4c"
+#define L_PALETTE "KWRY"
+#define L_ID "168x384"
+#define L_C_ACCENT 'R'
+#define L_C_NEG 'R'
+#define L_C_RULE 'Y'
+#define L_C_FLAG_BG 'Y'
+#define L_C_FLAG_FG 'K'
 #define L_WIDTH 168
 #define L_HEIGHT 384
 #define L_CHAR_W 6
@@ -59,10 +80,13 @@ static const PanelProfile PANEL_PROFILES[] = {
 #define L_FOOTER_TEXT_Y 373
 #define L_HDR_BAR_H 14
 #define L_HDR_TITLE_Y 3
+#define L_HDR_TITLE_SIZE 1
 #define L_HDR_DATETIME_Y 18
 #define L_HDR_STATUS_Y 29
+#define L_HDR_UPD_X 3
 #define L_HDR_WIFI_X 63
 #define L_HDR_API_X 117
+#define L_HDR_MARKET_X 3
 #define L_HDR_MARKET_Y 40
 #define L_HDR_SEP_Y 50
 #define L_LIM_MAX_PAGES 8
@@ -70,3 +94,111 @@ static const PanelProfile PANEL_PROFILES[] = {
 #define L_LIM_MAX_TEXT_LEN 28
 #define L_LIM_MAX_RESPONSE_BYTES 24576
 #define L_HDR_TITLE "Lalit Stock Application"
+#elif LS_PANEL == LS_PANEL_420_BW
+#define LS_PANEL_PROFILE "SSD1683_GDEY042T81"
+#define LS_PANEL_BUILD "420_bw"
+#define L_PALETTE "KW"
+#define L_ID "400x300"
+#define L_C_ACCENT 'K'
+#define L_C_NEG 'K'
+#define L_C_RULE 'K'
+#define L_C_FLAG_BG 'K'
+#define L_C_FLAG_FG 'W'
+#define L_WIDTH 400
+#define L_HEIGHT 300
+#define L_CHAR_W 6
+#define L_CHAR_H 8
+#define L_MARGIN_X 4
+#define L_BODY_TOP 40
+#define L_BODY_BOTTOM 280
+#define L_FOOTER_SEP_Y 284
+#define L_FOOTER_TEXT_Y 289
+#define L_HDR_BAR_H 20
+#define L_HDR_TITLE_Y 2
+#define L_HDR_TITLE_SIZE 2
+#define L_HDR_DATETIME_Y 25
+#define L_HDR_STATUS_Y 25
+#define L_HDR_UPD_X 114
+#define L_HDR_WIFI_X 174
+#define L_HDR_API_X 222
+#define L_HDR_MARKET_X 270
+#define L_HDR_MARKET_Y 25
+#define L_HDR_SEP_Y 37
+#define L_LIM_MAX_PAGES 8
+#define L_LIM_MAX_OPS_PER_PAGE 96
+#define L_LIM_MAX_TEXT_LEN 48
+#define L_LIM_MAX_RESPONSE_BYTES 24576
+#define L_HDR_TITLE "Lalit Stock Application"
+#elif LS_PANEL == LS_PANEL_420_BWR
+#define LS_PANEL_PROFILE "SSD1683_GDEY042Z98"
+#define LS_PANEL_BUILD "420_bwr"
+#define L_PALETTE "KWR"
+#define L_ID "400x300"
+#define L_C_ACCENT 'R'
+#define L_C_NEG 'R'
+#define L_C_RULE 'K'
+#define L_C_FLAG_BG 'R'
+#define L_C_FLAG_FG 'W'
+#define L_WIDTH 400
+#define L_HEIGHT 300
+#define L_CHAR_W 6
+#define L_CHAR_H 8
+#define L_MARGIN_X 4
+#define L_BODY_TOP 40
+#define L_BODY_BOTTOM 280
+#define L_FOOTER_SEP_Y 284
+#define L_FOOTER_TEXT_Y 289
+#define L_HDR_BAR_H 20
+#define L_HDR_TITLE_Y 2
+#define L_HDR_TITLE_SIZE 2
+#define L_HDR_DATETIME_Y 25
+#define L_HDR_STATUS_Y 25
+#define L_HDR_UPD_X 114
+#define L_HDR_WIFI_X 174
+#define L_HDR_API_X 222
+#define L_HDR_MARKET_X 270
+#define L_HDR_MARKET_Y 25
+#define L_HDR_SEP_Y 37
+#define L_LIM_MAX_PAGES 8
+#define L_LIM_MAX_OPS_PER_PAGE 96
+#define L_LIM_MAX_TEXT_LEN 48
+#define L_LIM_MAX_RESPONSE_BYTES 24576
+#define L_HDR_TITLE "Lalit Stock Application"
+#elif LS_PANEL == LS_PANEL_420_4C
+#define LS_PANEL_PROFILE "HX8717_GDEY0420F51"
+#define LS_PANEL_BUILD "420_4c"
+#define L_PALETTE "KWRY"
+#define L_ID "400x300"
+#define L_C_ACCENT 'R'
+#define L_C_NEG 'R'
+#define L_C_RULE 'Y'
+#define L_C_FLAG_BG 'Y'
+#define L_C_FLAG_FG 'K'
+#define L_WIDTH 400
+#define L_HEIGHT 300
+#define L_CHAR_W 6
+#define L_CHAR_H 8
+#define L_MARGIN_X 4
+#define L_BODY_TOP 40
+#define L_BODY_BOTTOM 280
+#define L_FOOTER_SEP_Y 284
+#define L_FOOTER_TEXT_Y 289
+#define L_HDR_BAR_H 20
+#define L_HDR_TITLE_Y 2
+#define L_HDR_TITLE_SIZE 2
+#define L_HDR_DATETIME_Y 25
+#define L_HDR_STATUS_Y 25
+#define L_HDR_UPD_X 114
+#define L_HDR_WIFI_X 174
+#define L_HDR_API_X 222
+#define L_HDR_MARKET_X 270
+#define L_HDR_MARKET_Y 25
+#define L_HDR_SEP_Y 37
+#define L_LIM_MAX_PAGES 8
+#define L_LIM_MAX_OPS_PER_PAGE 96
+#define L_LIM_MAX_TEXT_LEN 48
+#define L_LIM_MAX_RESPONSE_BYTES 24576
+#define L_HDR_TITLE "Lalit Stock Application"
+#else
+#error "Unknown LS_PANEL: use one of the LS_PANEL_* values above"
+#endif

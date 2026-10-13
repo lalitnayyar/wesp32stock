@@ -1,5 +1,6 @@
 {
-  "$comment": "Portrait 168x384 renderer contract. Body draw-ops come from the backend (see docs/RENDER_CONTRACT.md); header/footer are drawn locally by firmware and simulator from these constants. Font: Adafruit GFX classic 5x7 (6x8 cell per size unit). Colors: K=black W=white R=red Y=yellow.",
+  "$comment": "Portrait 168x384 renderer contract (WeAct 2.9in 4-colour). Landscape 400x300 panels use layout_400x300.json. Body draw-ops come from the backend (see docs/RENDER_CONTRACT.md); header/footer are drawn locally by firmware and simulator from these constants. Font: Adafruit GFX classic 5x7 (6x8 cell per size unit). Colors: K=black W=white R=red Y=yellow.",
+  "id": "168x384",
   "width": 168,
   "height": 384,
   "char_w": 6,
@@ -10,15 +11,29 @@
     "bar_color": "R",
     "title": "Lalit Stock Application",
     "title_y": 3,
+    "title_size": 1,
     "title_color": "W",
     "datetime_y": 18,
     "status_y": 29,
+    "upd_x": 3,
     "wifi_x": 63,
     "api_x": 117,
+    "market_x": 3,
     "market_y": 40,
     "sep_y": 50
   },
-  "body": { "top": 54, "bottom": 364 },
-  "footer": { "sep_y": 367, "text_y": 373 },
-  "limits": { "max_pages": 8, "max_ops_per_page": 96, "max_text_len": 28, "max_response_bytes": 24576 }
+  "body": {
+    "top": 54,
+    "bottom": 364
+  },
+  "footer": {
+    "sep_y": 367,
+    "text_y": 373
+  },
+  "limits": {
+    "max_pages": 8,
+    "max_ops_per_page": 96,
+    "max_text_len": 28,
+    "max_response_bytes": 24576
+  }
 }

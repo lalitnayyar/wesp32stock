@@ -1,0 +1,39 @@
+{
+  "$comment": "Landscape 400x300 renderer contract (WeAct 4.2in: GDEY042T81 B/W, GDEY042Z98 B/W/R, GDEY0420F51 4-colour). Same op format and font as layout.json; colours are limited to the panel palette in panel_profiles.json. Header/footer drawn locally from these constants.",
+  "id": "400x300",
+  "width": 400,
+  "height": 300,
+  "char_w": 6,
+  "char_h": 8,
+  "margin_x": 4,
+  "header": {
+    "bar_h": 20,
+    "bar_color": "R",
+    "title": "Lalit Stock Application",
+    "title_y": 2,
+    "title_size": 2,
+    "title_color": "W",
+    "datetime_y": 25,
+    "status_y": 25,
+    "upd_x": 114,
+    "wifi_x": 174,
+    "api_x": 222,
+    "market_x": 270,
+    "market_y": 25,
+    "sep_y": 37
+  },
+  "body": {
+    "top": 40,
+    "bottom": 280
+  },
+  "footer": {
+    "sep_y": 284,
+    "text_y": 289
+  },
+  "limits": {
+    "max_pages": 8,
+    "max_ops_per_page": 96,
+    "max_text_len": 48,
+    "max_response_bytes": 24576
+  }
+}

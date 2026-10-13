@@ -37,9 +37,10 @@ def device_online(db: Session, device: Device, now: datetime | None = None) -> b
     return (now - device.last_heartbeat_at).total_seconds() <= settings_store.get(db, "heartbeat_timeout_s")
 
 
-def dashboard_for(db: Session, *, portfolio: Portfolio | None, display: dict, device_uid: str, device_name: str) -> dict:
+def dashboard_for(db: Session, *, portfolio: Portfolio | None, display: dict, device_uid: str, device_name: str,
+                  panel_profile: str | None = None) -> dict:
     summary = analytics.portfolio_summary(db, portfolio) if portfolio else None
     bench = analytics.benchmarks(db)
     return build_dashboard(summary=summary, bench_rows=bench, display=display, device_uid=device_uid,
                            device_name=device_name, tz=settings_store.get(db, "timezone"),
-                           provider=get_settings().market_provider)
+                           provider=get_settings().market_provider, panel_profile=panel_profile)

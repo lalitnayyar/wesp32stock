@@ -8,9 +8,10 @@
 
 #include "logic.h"
 
-#define FW_VERSION "1.0.0"
+#define FW_VERSION "1.1.0"
 
-// ---- confirmed hardware (WeAct 2.9" 4C, GDEY029F51H / JD79667) - do not change without re-verification
+// ---- wiring (confirmed on the WeAct 2.9" 4C; the WeAct 4.2" modules use the same 8-pin header and pins).
+// The panel driver is chosen at compile time with LS_PANEL (see epaper.cpp and shared_contract.h).
 #define EPD_BUSY 4
 #define EPD_RST 26
 #define EPD_DC 25

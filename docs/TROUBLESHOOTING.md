@@ -32,7 +32,9 @@
 |---|---|
 | Upload stuck at `Connecting...` | Hold BOOT until the upload starts. Close the serial monitor. |
 | `Sketch too big` | Use `PartitionScheme=min_spiffs` (`firmware\flash.bat` does this). |
-| Blank screen | Wiring, 3V3, and the 4C driver. Run `upload.bat` (Hello World) first. |
+| Blank screen | Wiring, 3V3, and the driver for your module. Run `flash_esp32` → *Display test* (or `upload.bat COM3 <build>`) first. |
+| 4.2" panel blank, garbled or half drawn | Firmware built for another module. Reflash with the module printed on the flex cable (`flash_esp32`, options 2-4). |
+| `invalid response: layout is not ...` | Server and device disagree on the panel. Update the server; the device sends its panel with every fetch. |
 | `API:ERR` + "API key rejected" | The key is revoked/expired, lacks a scope, or isn't bound to a registered device. Create keys from the device's row in **E-Paper Devices**, which binds them automatically. |
 | `API:OFF` | Wi-Fi is down or the server is unreachable. Check the URL and DNS. HTTPS needs a valid certificate (or a custom root CA). |
 | Wi-Fi OK, `API OFF`, fetches `0/0`, NTP not synced | Still in setup mode: Wi-Fi, API URL, API key and admin password must all be saved before the network task starts. |

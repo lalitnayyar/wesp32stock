@@ -13,8 +13,8 @@
     "rows_per_page":        { "type": "int",  "default": 8,     "min": 4,    "max": 8 },
     "show_summary_page":    { "type": "bool", "default": true },
     "show_benchmarks_page": { "type": "bool", "default": true },
-    "orientation":          { "type": "enum", "default": "portrait", "values": ["portrait"] },
-    "panel_profile":        { "type": "enum", "default": "JD79667_GDEY029F51H", "values": ["JD79667_GDEY029F51H", "TEST_FAST_PANEL", "UNKNOWN"] },
+    "orientation":          { "type": "enum", "default": "portrait", "values": ["portrait", "landscape"], "description": "Fixed by the panel: 2.9in portrait, 4.2in landscape." },
+    "panel_profile":        { "type": "enum", "default": "JD79667_GDEY029F51H", "values": ["JD79667_GDEY029F51H", "SSD1683_GDEY042T81", "SSD1683_GDEY042Z98", "HX8717_GDEY0420F51", "TEST_FAST_PANEL", "UNKNOWN"] },
     "timezone":             { "type": "string", "default": "Asia/Dubai", "max_len": 40 },
     "posix_tz":             { "type": "string", "default": "<+04>-4", "max_len": 40 },
     "ntp_server":           { "type": "string", "default": "pool.ntp.org", "max_len": 64 }

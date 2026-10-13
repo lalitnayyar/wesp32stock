@@ -2,7 +2,11 @@
 
 The server paginates and lays out every page body as draw-ops so that the firmware and the
 browser simulator render byte-identical pages. Header/footer (clock, Wi-Fi, API, page indicator)
-are drawn on the device from shared/layout.json because only the device knows that state.
+are drawn on the device from the shared layout because only the device knows that state.
+
+Two layouts exist: portrait 168x384 (2.9in 4-colour, shared/layout.json) and landscape 400x300
+(4.2in panels, shared/layout_400x300.json). The panel profile picks the layout and the palette;
+landscape pages only use colours the panel can show (black/white, +red, +yellow).
 """
 from __future__ import annotations
 
@@ -11,7 +15,7 @@ import json
 from datetime import datetime, timezone
 from decimal import Decimal
 
-from .device_rules import layout
+from .device_rules import layout, panel_spec, roles
 
 UP, DOWN, FLAT = "\x1e", "\x1f", "="
 DEFAULT_DISPLAY = {
@@ -177,10 +181,145 @@ def summary_page_ops(summary: dict | None, portfolio_name: str | None) -> list:
     return ops
 
 
-def build_pages(summary: dict | None, bench_rows: list[dict], display: dict) -> list[dict]:
+# ----------------------------------------------------------------------------- landscape 400x300
+
+class Landscape:
+    """Page bodies for 400x300 panels. Two-line rows: size-2 symbol/price/% and a size-1 detail line."""
+
+    ROW_TOP, ROW_H = 56, 28
+
+    def __init__(self, L: dict, palette: str):
+        self.L, self.c, self.m = L, roles(palette), L["margin_x"]
+
+    def T(self, x, y, text, color="K", size=1):
+        return ["T", int(x), int(y), size, color, _clip(text, self.L["limits"]["max_text_len"])]
+
+    def right(self, text, size=1, edge=None):
+        return (edge if edge is not None else self.L["width"] - self.m) - len(text) * self.L["char_w"] * size
+
+    def col(self, dirn):
+        return self.c["neg"] if dirn < 0 else "K"
+
+    def title(self, text, note="", note_color="K"):
+        ops = [self.T(self.m, 42, text, self.c["accent"])]
+        if note:
+            ops.append(self.T(self.right(note), 42, note, note_color))
+        return ops
+
+    def badge(self, x, y, text):
+        w = len(text) * self.L["char_w"] + 4
+        return [["F", x, y - 1, w, 10, self.c["flag_bg"]], self.T(x + 2, y, text, self.c["flag_fg"])]
+
+    def row(self, i, name, price, pct, dirn, detail, mid="", mid_dir=0, right2="", stale=False, last=False,
+            nodata=False):
+        y = self.ROW_TOP + i * self.ROW_H
+        name = _clip(name, 22)
+        nsize = 2 if len(name) <= 8 else 1
+        ops = [self.T(self.m, y if nsize == 2 else y + 4, name, "K", nsize)]
+        price = _clip(price, 20)
+        psize = 2 if len(price) <= 12 else 1
+        ops.append(self.T(self.right(price, psize, 250), y if psize == 2 else y + 4, price, "K", psize))
+        if nodata:
+            ops.append(self.T(self.m, y + 18, "no data", self.c["neg"]))
+        else:
+            pct = _clip(pct, 12)
+            psz = 2 if len(pct) <= 9 else 1
+            ops.append(self.T(self.right(pct, psz), y if psz == 2 else y + 4, pct, self.col(dirn), psz))
+            if detail:
+                ops.append(self.T(self.m, y + 18, _clip(detail, 20)))
+            if mid:
+                ops.append(self.T(self.right(mid, 1, 250), y + 18, mid, self.col(mid_dir)))
+            if right2:
+                ops.append(self.T(self.right(right2), y + 18, right2, self.col(dirn)))
+        if stale:
+            ops += self.badge(130, y + 18, "STALE")
+        if not last:
+            ops.append(["H", self.m, y + 27, self.L["width"] - 2 * self.m, self.c["rule"]])
+        return ops
+
+    def holdings(self, title: str, rows: list[dict], more: int = 0) -> list:
+        ops = self.title(title, f"+{more} more holdings" if more else "", self.c["neg"])
+        for i, r in enumerate(rows):
+            dirn = direction(r.get("day_change_pct"))
+            price = r.get("price")
+            price_txt = (fmt_num(price) + " " + (r.get("currency") or "")).strip() if price is not None else "--"
+            pct = f"{_arrow(dirn)}{fmt_signed(r.get('day_change_pct'))}%"
+            unrl = r.get("unrealized_pct")
+            ops += self.row(i, r["ticker"], price_txt, pct, dirn, r.get("company") or "",
+                            mid=f"P/L {fmt_signed(unrl)}%" if unrl is not None else "", mid_dir=direction(unrl),
+                            right2=f"Day {fmt_signed(r.get('day_change'))}", stale=bool(r.get("stale")),
+                            last=(i == len(rows) - 1), nodata=price is None)
+        return ops
+
+    def benchmarks(self, rows: list[dict]) -> list:
+        ops = self.title("BENCHMARKS", "Index levels only; not portfolio returns.")
+        for i, r in enumerate(rows):
+            dirn = direction(r.get("day_change_pct"))
+            rets = "  ".join(f"{k} {fmt_signed(r[f], 1)}%" for k, f in (("1M", "ret_1m"), ("YTD", "ret_ytd"),
+                                                                        ("1Y", "ret_1y")) if r.get(f) is not None)
+            ops += self.row(i, r["name"], fmt_num(r.get("level")) if r.get("level") else "--",
+                            f"{_arrow(dirn)}{fmt_signed(r.get('day_change_pct'))}%", dirn, "",
+                            stale=bool(r.get("stale")), last=(i == len(rows) - 1), nodata=r.get("level") is None)
+            if rets and r.get("level") is not None:
+                ops.append(self.T(self.m, self.ROW_TOP + i * self.ROW_H + 18, rets))
+        return ops
+
+    def summary(self, summary: dict | None, portfolio_name: str | None) -> list:
+        m, c, W = self.m, self.c, self.L["width"]
+        if summary is None:
+            return self.title("PORTFOLIO") + [self.T(m, 60, "No portfolio assigned to this device.", c["neg"])]
+        t = summary["totals"]
+        ccy = summary["portfolio"]["base_currency"]
+        ops = self.title("PORTFOLIO", _clip(portfolio_name or summary["portfolio"]["name"], 40))
+
+        def big(y, label, value, color="K", pct=None):
+            value = _clip(value, 30)
+            size = 3 if len(value) <= 10 else 2 if len(value) <= 15 else 1
+            out = [self.T(m, y, label), ["T", m, y + 11, size, color, value]]
+            if pct is not None:
+                out.append(self.T(m, y + 11 + 8 * size + 3, pct, color))
+            return out
+
+        ops += big(56, f"Value ({ccy})", fmt_num(t["market_value"]))
+        dday = direction(t["day_pl"])
+        ops += big(102, "Today", fmt_signed(t["day_pl"]), self.col(dday),
+                   f"{_arrow(dday)} {fmt_signed(t['day_pct'])}%" if t["day_pct"] is not None else "--")
+        dun = direction(t["unrealized_pl"])
+        ops += big(160, "Unrealized", fmt_signed(t["unrealized_pl"]), self.col(dun),
+                   f"{_arrow(dun)} {fmt_signed(t['unrealized_pct'])}%" if t["unrealized_pct"] is not None else "--")
+        x2 = 236
+        ops.append(["R", x2 - 6, 56, W - m - x2 + 6, 136, "K"])
+        lines = [("Holdings", str(t["active_holdings"]), 0), ("Invested", fmt_num(t["invested"]), 0)]
+        if t.get("realized_pl") is not None:
+            lines.append(("Realized", fmt_signed(t["realized_pl"]), direction(t["realized_pl"])))
+        lines += [(k, fmt_num(t[f]), 0) for k, f in (("Dividends", "dividends"), ("Cash", "cash"))
+                  if t.get(f) is not None]
+        for i, (k, v, d) in enumerate(lines):
+            y = 62 + i * 13
+            ops += [self.T(x2, y, k), self.T(self.right(v, 1, W - m - 4), y, v, self.col(d))]
+        ops.append(["H", x2, 129, W - m - x2 - 4, c["rule"]])
+        for i, key in enumerate(("best", "worst")):
+            b = summary.get(key)
+            if b:
+                txt = f"{key.title():5}: {b['ticker']} {fmt_signed(b['day_change_pct'])}%"
+                ops.append(self.T(x2, 136 + i * 13, txt, self.col(direction(b["day_change_pct"]))))
+        stale = summary["freshness"]["stale_count"]
+        if stale:
+            ops += self.badge(x2, 172, f"{stale} quote(s) stale")
+        ops += [["H", m, 252, W - 2 * m, c["rule"]], self.T(m, 262, "Not financial advice. Data may be delayed.")]
+        return ops
+
+
+def build_pages(summary: dict | None, bench_rows: list[dict], display: dict,
+                panel_profile: str | None = None) -> list[dict]:
+    spec = panel_spec(panel_profile)
+    land = Landscape(spec["layout"], spec["palette"]) if spec["layout"]["id"] == "400x300" else None
+    summary_ops = land.summary if land else summary_page_ops
+    holdings_ops = land.holdings if land else holdings_page_ops
+    bench_ops = land.benchmarks if land else benchmarks_page_ops
     cfg = {**DEFAULT_DISPLAY, **(display or {})}
     rpp = max(4, min(8, int(cfg["rows_per_page"])))
-    max_pages = _L()["limits"]["max_pages"]
+    max_pages = spec["layout"]["limits"]["max_pages"]
     holdings = list(summary["holdings"]) if summary else []
     sort = cfg.get("sort", "value")
     if sort == "ticker":
@@ -207,23 +346,25 @@ def build_pages(summary: dict | None, bench_rows: list[dict], display: dict) -> 
         if not want[kind]:
             continue
         if kind == "summary":
-            pages.append({"k": "summary", "ops": summary_page_ops(summary, summary["portfolio"]["name"] if summary else None)})
+            pages.append({"k": "summary", "ops": summary_ops(summary, summary["portfolio"]["name"] if summary else None)})
         elif kind == "holdings":
             n = len(chunks)
             for i, chunk in enumerate(chunks):
                 title = "HOLDINGS" if n == 1 else f"HOLDINGS {i + 1}/{n}"
-                pages.append({"k": "holdings", "ops": holdings_page_ops(title, chunk, more if i == n - 1 else 0)})
+                pages.append({"k": "holdings", "ops": holdings_ops(title, chunk, more if i == n - 1 else 0)})
         elif kind == "benchmarks":
-            pages.append({"k": "benchmarks", "ops": benchmarks_page_ops(bench_rows[:min(rpp, 7)])})
+            pages.append({"k": "benchmarks", "ops": bench_ops(bench_rows[:min(rpp, 7)])})
     if not pages:
-        pages.append({"k": "summary", "ops": summary_page_ops(summary, None)})
+        pages.append({"k": "summary", "ops": summary_ops(summary, None)})
     return pages
 
 
 def build_dashboard(*, summary: dict | None, bench_rows: list[dict], display: dict, device_uid: str,
-                    device_name: str, tz: str, provider: str, now: datetime | None = None) -> dict:
+                    device_name: str, tz: str, provider: str, now: datetime | None = None,
+                    panel_profile: str | None = None) -> dict:
     now = now or datetime.now(timezone.utc)
-    pages = build_pages(summary, bench_rows, display)
+    spec = panel_spec(panel_profile)
+    pages = build_pages(summary, bench_rows, display, spec["profile"])
     holdings = summary["holdings"] if summary else []
     states = {h["market_state"] for h in holdings}
     market = "OPEN" if "OPEN" in states else "CLOSED" if states == {"CLOSED"} else "--"
@@ -235,6 +376,7 @@ def build_dashboard(*, summary: dict | None, bench_rows: list[dict], display: di
                              sort_keys=True, separators=(",", ":"))
     return {
         "v": 1,
+        "layout": spec["layout"]["id"],
         "data_version": hashlib.sha1(version_src.encode()).hexdigest()[:12],
         "generated_at": now.replace(microsecond=0).isoformat().replace("+00:00", "Z"),
         "tz": tz,
@@ -245,10 +387,13 @@ def build_dashboard(*, summary: dict | None, bench_rows: list[dict], display: di
     }
 
 
-def validate_ops(dashboard: dict) -> list[str]:
-    """Bounds/limits check used by tests and the simulator to guarantee firmware-safe output."""
-    L = _L()
+def validate_ops(dashboard: dict, panel_profile: str | None = None) -> list[str]:
+    """Bounds/limits/palette check used by tests to guarantee firmware-safe output for the panel."""
+    spec = panel_spec(panel_profile)
+    L, palette = spec["layout"], spec["palette"]
     errs: list[str] = []
+    if dashboard.get("layout") != L["id"]:
+        errs.append(f"layout {dashboard.get('layout')} != {L['id']}")
     if len(dashboard["pages"]) > L["limits"]["max_pages"]:
         errs.append("too many pages")
     for pi, page in enumerate(dashboard["pages"]):
@@ -270,7 +415,7 @@ def validate_ops(dashboard: dict) -> list[str]:
             else:
                 errs.append(f"page {pi}: unknown op {kind}")
                 continue
-            if color not in ("K", "W", "R", "Y"):
+            if color not in palette:
                 errs.append(f"page {pi}: bad color {color}")
             if x < 0 or y < L["body"]["top"] or x + w > L["width"] or y + h > L["body"]["bottom"] + 1:
                 errs.append(f"page {pi}: op out of body bounds {op}")

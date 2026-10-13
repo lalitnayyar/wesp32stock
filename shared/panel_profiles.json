@@ -1,9 +1,37 @@
 {
-  "$comment": "Panel refresh-safety profiles. min_safe_s = ceil(full_refresh_ms * (100 + safety_margin_pct) / 100 / 1000) + min_dwell_s. effective = max(requested, min_safe_s). Unknown profiles use fallback_s.",
+  "$comment": "Panel refresh-safety profiles. min_safe_s = ceil(full_refresh_ms * (100 + safety_margin_pct) / 100 / 1000) + min_dwell_s. effective = max(requested, min_safe_s). Unknown profiles use fallback_s. layout = shared layout file; palette = colours the panel can show (K black, W white, R red, Y yellow); build = firmware build id (flash.bat COMx <build>); driver = GxEPD2 class. verified = timing confirmed on real hardware. palette_roles maps semantic colours (accent bars/titles, neg losses/errors, rule separators, flag badge background/foreground) to each palette. module = short name shown when choosing a module (Register device, simulator, flashing wizard).",
   "fallback_s": 180,
+  "palette_roles": {
+    "KWRY": {
+      "accent": "R",
+      "neg": "R",
+      "rule": "Y",
+      "flag_bg": "Y",
+      "flag_fg": "K"
+    },
+    "KWR": {
+      "accent": "R",
+      "neg": "R",
+      "rule": "K",
+      "flag_bg": "R",
+      "flag_fg": "W"
+    },
+    "KW": {
+      "accent": "K",
+      "neg": "K",
+      "rule": "K",
+      "flag_bg": "K",
+      "flag_fg": "W"
+    }
+  },
   "profiles": {
     "JD79667_GDEY029F51H": {
+      "module": "WeAct 2.9\" 4-colour (168x384 portrait)",
       "label": "WeAct 2.9in 4C, GDEY029F51H / JD79667 (GxEPD2_290c_GDEY029F51H)",
+      "build": "290_4c",
+      "driver": "GxEPD2_4C<GxEPD2_290c_GDEY029F51H>",
+      "layout": "layout.json",
+      "palette": "KWRY",
       "full_refresh_ms": 25000,
       "safety_margin_pct": 20,
       "min_dwell_s": 30,
@@ -11,8 +39,52 @@
       "evidence": "GxEPD2 1.6.9 src/epd4c/GxEPD2_290c_GDEY029F51H.h: full_refresh_time = 25000 ms (measured 21428295 us), partial_refresh_time = 25000 ms, hasFastPartialUpdate = false. Hardware Hello World confirmed on the owner's board.",
       "simulation_only": false
     },
+    "SSD1683_GDEY042T81": {
+      "module": "WeAct 4.2\" black/white (400x300)",
+      "label": "WeAct 4.2in B/W, GDEY042T81 / SSD1683 (GxEPD2_420_GDEY042T81)",
+      "build": "420_bw",
+      "driver": "GxEPD2_BW<GxEPD2_420_GDEY042T81>",
+      "layout": "layout_400x300.json",
+      "palette": "KW",
+      "full_refresh_ms": 1200,
+      "safety_margin_pct": 20,
+      "min_dwell_s": 30,
+      "verified": false,
+      "evidence": "GxEPD2 1.6.9 src/gdey/GxEPD2_420_GDEY042T81.h: full_refresh_time = 1200 ms (measured 1140000 us), hasFastPartialUpdate = true. Not yet confirmed on the owner's hardware.",
+      "simulation_only": false
+    },
+    "SSD1683_GDEY042Z98": {
+      "module": "WeAct 4.2\" black/white/red (400x300)",
+      "label": "WeAct 4.2in B/W/R, GDEY042Z98 / SSD1683 (GxEPD2_420c_GDEY042Z98)",
+      "build": "420_bwr",
+      "driver": "GxEPD2_3C<GxEPD2_420c_GDEY042Z98>",
+      "layout": "layout_400x300.json",
+      "palette": "KWR",
+      "full_refresh_ms": 25000,
+      "safety_margin_pct": 20,
+      "min_dwell_s": 30,
+      "verified": false,
+      "evidence": "GxEPD2 1.6.9 src/gdey3c/GxEPD2_420c_GDEY042Z98.h: full_refresh_time = 25000 ms (measured 22780001 us), colour refresh always full-window. Not yet confirmed on the owner's hardware.",
+      "simulation_only": false
+    },
+    "HX8717_GDEY0420F51": {
+      "module": "WeAct 4.2\" 4-colour (400x300)",
+      "label": "WeAct 4.2in 4C, GDEY0420F51 / HX8717 (GxEPD2_420c_GDEY0420F51)",
+      "build": "420_4c",
+      "driver": "GxEPD2_4C<GxEPD2_420c_GDEY0420F51>",
+      "layout": "layout_400x300.json",
+      "palette": "KWRY",
+      "full_refresh_ms": 30000,
+      "safety_margin_pct": 20,
+      "min_dwell_s": 30,
+      "verified": false,
+      "evidence": "GxEPD2 1.6.9 src/epd4c/GxEPD2_420c_GDEY0420F51.h: full_refresh_time = 30000 ms (measured 27676925 us). Not yet confirmed on the owner's hardware.",
+      "simulation_only": false
+    },
     "TEST_FAST_PANEL": {
       "label": "Hypothetical fast panel (simulation/test only)",
+      "layout": "layout.json",
+      "palette": "KWRY",
       "full_refresh_ms": 2000,
       "safety_margin_pct": 20,
       "min_dwell_s": 5,

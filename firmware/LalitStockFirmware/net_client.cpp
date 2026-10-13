@@ -48,6 +48,9 @@ static time_t parseIsoUtc(const char* s) {
 // Structural validation so a malformed/hostile response can never crash the renderer.
 static bool validDashboard(JsonDocument& d, char* why, size_t n) {
   if ((d["v"] | 0) != 1) { strlcpy(why, "unsupported contract version", n); return false; }
+  // Pages are laid out for one panel size; reject another layout (e.g. an old cache after reflashing).
+  // Servers before 1.1 send no layout and only the 168x384 one.
+  if (strcmp(d["layout"] | "168x384", L_ID) != 0) { strlcpy(why, "layout is not " L_ID, n); return false; }
   JsonArray pages = d["pages"];
   if (pages.isNull() || pages.size() < 1 || pages.size() > L_LIM_MAX_PAGES) { strlcpy(why, "bad page count", n); return false; }
   for (JsonObject p : pages) {
@@ -106,7 +109,7 @@ static bool doFetch(char* msg, size_t msgLen) {
   }
   String url = baseUrl() + "/api/v1/device/dashboard?rows=" + g_cfg.rows_per_page +
                "&summary=" + (g_cfg.show_summary_page ? "true" : "false") +
-               "&bench=" + (g_cfg.show_benchmarks_page ? "true" : "false");
+               "&bench=" + (g_cfg.show_benchmarks_page ? "true" : "false") + "&panel=" LS_PANEL_PROFILE;
   if (since[0]) url += String("&since=") + since;
 
   HTTPClient http;

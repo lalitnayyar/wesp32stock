@@ -263,26 +263,28 @@ inline int rightX(const char* text, int size = 1) {
   return L_WIDTH - L_MARGIN_X - (int)strlen(text) * L_CHAR_W * size;
 }
 
-// Builds header ops followed by footer ops. Body ops come from the server.
+// Builds header ops followed by footer ops. Body ops come from the server. Positions come from the
+// compiled panel's layout and colours from its palette roles (L_C_*), so the 2.9in 4-colour output is
+// unchanged and 4.2in black/white or black/white/red panels never receive a colour they cannot show.
 inline int buildHeaderFooterOps(const HeaderStatus& s, DrawOp* out, int max) {
   int n = 0;
   char buf[48];
-  addRect(out, n, max, 'F', 0, 0, L_WIDTH, L_HDR_BAR_H, 'R');
-  addText(out, n, max, L_MARGIN_X, L_HDR_TITLE_Y, 'W', L_HDR_TITLE);
+  addRect(out, n, max, 'F', 0, 0, L_WIDTH, L_HDR_BAR_H, L_C_ACCENT);
+  addText(out, n, max, L_MARGIN_X, L_HDR_TITLE_Y, 'W', L_HDR_TITLE, L_HDR_TITLE_SIZE);
   if (s.datetime) addText(out, n, max, L_MARGIN_X, L_HDR_DATETIME_Y, 'K', s.datetime);
-  else addText(out, n, max, L_MARGIN_X, L_HDR_DATETIME_Y, 'R', "NO TIME SYNC");
+  else addText(out, n, max, L_MARGIN_X, L_HDR_DATETIME_Y, L_C_NEG, "NO TIME SYNC");
   snprintf(buf, sizeof buf, "Upd %s", s.last_ok ? s.last_ok : "--:--");
-  addText(out, n, max, L_MARGIN_X, L_HDR_STATUS_Y, 'K', buf);
-  addText(out, n, max, L_HDR_WIFI_X, L_HDR_STATUS_Y, s.wifi ? 'K' : 'R', s.wifi ? "WiFi:OK" : "WiFi:--");
+  addText(out, n, max, L_HDR_UPD_X, L_HDR_STATUS_Y, 'K', buf);
+  addText(out, n, max, L_HDR_WIFI_X, L_HDR_STATUS_Y, s.wifi ? 'K' : L_C_NEG, s.wifi ? "WiFi:OK" : "WiFi:--");
   snprintf(buf, sizeof buf, "API:%s", s.api);
-  addText(out, n, max, L_HDR_API_X, L_HDR_STATUS_Y, strcmp(s.api, "OK") == 0 ? 'K' : 'R', buf);
+  addText(out, n, max, L_HDR_API_X, L_HDR_STATUS_Y, strcmp(s.api, "OK") == 0 ? 'K' : L_C_NEG, buf);
   snprintf(buf, sizeof buf, "Mkt:%s", s.market && *s.market ? s.market : "--");
-  addText(out, n, max, L_MARGIN_X, L_HDR_MARKET_Y, 'K', buf);
+  addText(out, n, max, L_HDR_MARKET_X, L_HDR_MARKET_Y, 'K', buf);
   if (s.flag && *s.flag) {
     int w = (int)strlen(s.flag) * L_CHAR_W + 4;
     int x = L_WIDTH - L_MARGIN_X - w;
-    addRect(out, n, max, 'F', x, L_HDR_MARKET_Y - 2, w, 11, 'Y');
-    addText(out, n, max, x + 2, L_HDR_MARKET_Y, 'K', s.flag);
+    addRect(out, n, max, 'F', x, L_HDR_MARKET_Y - 2, w, 11, L_C_FLAG_BG);
+    addText(out, n, max, x + 2, L_HDR_MARKET_Y, L_C_FLAG_FG, s.flag);
   }
   addRect(out, n, max, 'H', 0, L_HDR_SEP_Y, L_WIDTH, 1, 'K');
   addRect(out, n, max, 'H', 0, L_FOOTER_SEP_Y, L_WIDTH, 1, 'K');
@@ -292,7 +294,7 @@ inline int buildHeaderFooterOps(const HeaderStatus& s, DrawOp* out, int max) {
   if (s.age_s >= 0) formatAge(s.age_s, age, sizeof age);
   else strcpy(age, "--");
   snprintf(buf, sizeof buf, s.offline ? "OFFLINE %s" : "Age %s", age);
-  addText(out, n, max, rightX(buf), L_FOOTER_TEXT_Y, s.offline ? 'R' : 'K', buf);
+  addText(out, n, max, rightX(buf), L_FOOTER_TEXT_Y, s.offline ? L_C_NEG : 'K', buf);
   return n;
 }
 

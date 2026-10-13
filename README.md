@@ -1,6 +1,6 @@
 # Lalit Stock Application
 
-**Your stock portfolio, always on the desk: a self-hosted portfolio tracker with a web admin console and a low-power ESP32 four-colour E-Paper display.**
+**Your stock portfolio, always on the desk: a self-hosted portfolio tracker with a web admin console and a low-power ESP32 E-Paper display (WeAct 2.9" four-colour, or 4.2" 400 × 300 in black/white, black/white/red or four-colour).**
 
 **Owner:** Lalit Nayyar · consult@lalit.cloud · +971568391973 · default timezone `Asia/Dubai`
 
@@ -37,6 +37,7 @@
 
 ## Why Lalit Stock
 
+- **Choose your display:** four WeAct Studio E-Paper modules are supported: the 2.9" four-colour panel and three 4.2" 400 × 300 panels (black/white, black/white/red, four-colour). The server lays out every page for the exact panel and its colours.
 - **Glanceable:** a 2.9-inch red/yellow/black/white E-Paper panel shows portfolio value, today's gain/loss and every holding. It draws no power between refreshes and needs no screen time.
 - **Private:** everything runs on your own Docker host or VPS. Your ledger never leaves your server.
 - **Accurate:** holdings are replayed from an audited transaction ledger with decimal-safe average-cost accounting.
@@ -67,11 +68,23 @@
 
 <p align="center"><img src="docs/screenshots/telegram-chat.png" alt="Telegram bot conversation" width="380"></p>
 
-**The E-Paper display** (168 × 384 portrait, rendered by the simulator with the firmware's own font and draw-ops):
+| **Register a device with its E-Paper module** | **Simulator with module selection (4.2" black/white/red)** |
+|---|---|
+| ![Register device](docs/screenshots/register-device-module.png) | ![Simulator 4.2in](docs/screenshots/simulator-420.png) |
+
+**The 2.9" E-Paper display** (168 × 384 portrait, rendered by the simulator with the firmware's own font and draw-ops):
 
 | Page 1: portfolio summary | Page 2: holdings | Page 3: benchmarks |
 |---|---|---|
 | <img src="docs/screenshots/epaper-page1.png" width="220"> | <img src="docs/screenshots/epaper-page2.png" width="220"> | <img src="docs/screenshots/epaper-page3.png" width="220"> |
+
+**The 4.2" E-Paper displays** (400 × 300 landscape; each panel only gets the colours it can show):
+
+| 4.2" black/white/red: portfolio | Holdings | Benchmarks |
+|---|---|---|
+| <img src="docs/screenshots/epaper-420-bwr-page1.png" width="300"> | <img src="docs/screenshots/epaper-420-bwr-page2.png" width="300"> | <img src="docs/screenshots/epaper-420-bwr-page3.png" width="300"> |
+| **4.2" black/white: portfolio** | **Holdings (losses shown with ▼, no colour)** | **4.2" 4-colour: portfolio** |
+| <img src="docs/screenshots/epaper-420-bw-page1.png" width="300"> | <img src="docs/screenshots/epaper-420-bw-page2.png" width="300"> | <img src="docs/screenshots/epaper-420-4c-page1.png" width="300"> |
 
 ## Features
 
@@ -109,7 +122,17 @@
 - **Secrets stay secret:** the bot token is encrypted at rest, masked in the UI and API, and redacted from logs.
 
 ### ESP32 E-Paper client
-- WeAct Studio 2.9" **4-colour** panel (GDEY029F51H / JD79667) on an ESP32-WROOM-32.
+- Four WeAct Studio modules on an ESP32-WROOM-32, chosen when flashing (same wiring for all):
+
+| # | WeAct Studio module | Resolution | Colours | Panel / controller | GxEPD2 driver | Firmware build | Effective page time (10 s requested) |
+|---|---|---|---|---|---|---|---|
+| 1 | **2.9" 4-colour** (default) | 168 × 384 portrait | black, white, red, yellow | GDEY029F51H / JD79667 | `GxEPD2_290c_GDEY029F51H` | `290_4c` | 60 s · **hardware-verified** |
+| 2 | **4.2" black/white** | 400 × 300 landscape | black, white | GDEY042T81 / SSD1683 | `GxEPD2_420_GDEY042T81` | `420_bw` | 32 s (≈1.2 s refresh) |
+| 3 | **4.2" black/white/red** | 400 × 300 landscape | black, white, red | GDEY042Z98 / SSD1683 | `GxEPD2_420c_GDEY042Z98` | `420_bwr` | 60 s (≈25 s refresh) |
+| 4 | **4.2" 4-colour** | 400 × 300 landscape | black, white, red, yellow | GDEY0420F51 / HX8717 | `GxEPD2_420c_GDEY0420F51` | `420_4c` | 66 s (≈30 s refresh) |
+
+- **Interactive flashing wizard:** `flash_esp32.bat` (Windows) / `./flash_esp32.sh` (Linux/macOS) asks for the module, firmware or display test, and the serial port.
+- The device tells the server which panel it is; the server lays out portrait or landscape pages with only that panel's colours (black/white panels show losses with ▼ arrows and inverted badges).
 - Pages: portfolio summary → holdings (paginated) → benchmarks. `PAGE n/N` and data age appear on every page.
 - First-boot **setup portal** (WPA2 access point), an on-device admin page, Pause/Resume/Next/Go-to-page controls, and BOOT-button recovery.
 - The last good dashboard is cached in flash and shown at boot. On failure the screen shows `CACHED` / `OFFLINE <age>` and never goes blank.
@@ -177,8 +200,8 @@ cd wesp32stock
 | **Portfolios** | Create portfolios and brokers. Record transactions (BUY, SELL, DIVIDEND, SPLIT, FEE, DEPOSIT, WITHDRAWAL, ADJUSTMENT). Holdings update immediately from the ledger. |
 | **Stocks** | Add symbols (validated against the provider), set name/exchange/currency/sector, activate or deactivate, refresh a quote, view history. |
 | **Analytics** | Sector and currency exposure, performers today, benchmark comparison and **AI insights**, with **Export .md** and **Send to Telegram**. |
-| **E-Paper Devices** | Register ESP32 devices, assign a portfolio, see online/offline status, RSSI, uptime, firmware, data version, page state, and requested vs effective page duration. Preview what the device shows. |
-| **E-Paper Simulator** | A browser replica of the device for testing (see below). |
+| **E-Paper Devices** | Register ESP32 devices with their **E-Paper module** (2.9" 4-colour or one of the 4.2" panels), assign a portfolio, see online/offline status, RSSI, uptime, firmware, data version, page state, and requested vs effective page duration. Preview what the device shows, for its module or any other. |
+| **E-Paper Simulator** | A browser replica of the device for testing (see below). Pick any of the four **E-Paper modules** at the top; the display, colours and refresh timing switch immediately. |
 | **API Management** | Create, rotate, revoke and expire device API keys, and view the per-request access log. |
 | **AI Settings** | Add OpenAI / DeepSeek / Ollama providers, choose a model and run **Test Connection**. |
 | **Settings** | Timezone, quote refresh interval, timeouts, retries, backoff, closed-market polling, stale threshold, heartbeat timeout, device rate limit, the admin password and the **Telegram bot** (token, allowed chats, default portfolio, status, test). |
@@ -295,9 +318,18 @@ This tests the exact endpoint the ESP32 uses.
 
 Full API reference: [docs/API.md](docs/API.md) and the live OpenAPI UI at `/api/docs`.
 
-### C. Physical ESP32 + WeAct 2.9" 4-colour E-Paper
+### C. Physical ESP32 + WeAct E-Paper (2.9" 4-colour or 4.2" 400 × 300)
 
-**Hardware:** ESP32-WROOM-32 (*ESP32 Dev Module*) and WeAct Studio 2.9" 4C E-Paper (GDEY029F51H / JD79667).
+**Hardware:** ESP32-WROOM-32 (*ESP32 Dev Module*) and one of these WeAct Studio E-Paper modules. The module type is printed on its flex cable and on the WeAct product page.
+
+| # | WeAct Studio module | Resolution | Colours | Panel / controller | GxEPD2 driver | Firmware build | Effective page time (10 s requested) |
+|---|---|---|---|---|---|---|---|
+| 1 | **2.9" 4-colour** (default) | 168 × 384 portrait | black, white, red, yellow | GDEY029F51H / JD79667 | `GxEPD2_290c_GDEY029F51H` | `290_4c` | 60 s · **hardware-verified** |
+| 2 | **4.2" black/white** | 400 × 300 landscape | black, white | GDEY042T81 / SSD1683 | `GxEPD2_420_GDEY042T81` | `420_bw` | 32 s (≈1.2 s refresh) |
+| 3 | **4.2" black/white/red** | 400 × 300 landscape | black, white, red | GDEY042Z98 / SSD1683 | `GxEPD2_420c_GDEY042Z98` | `420_bwr` | 60 s (≈25 s refresh) |
+| 4 | **4.2" 4-colour** | 400 × 300 landscape | black, white, red, yellow | GDEY0420F51 / HX8717 | `GxEPD2_420c_GDEY0420F51` | `420_4c` | 66 s (≈30 s refresh) |
+
+All four modules have the same 8-pin header and use the same ESP32 pins:
 
 | E-Paper pin | ESP32 GPIO |
 |---|---|
@@ -310,17 +342,34 @@ Full API reference: [docs/API.md](docs/API.md) and the live OpenAPI UI at `/api/
 | RES | 26 |
 | BUSY | 4 |
 
-1. **Check the display first:** `upload.bat COM3` (Windows) or `./upload.sh [/dev/ttyUSB0]` (Linux/macOS) flashes the Hello World sketch in `ESP32_EPaper_Test/`. Continue only when it shows on the panel.
-2. **Flash the firmware:** `firmware\flash.bat COM3` (Windows) or `firmware/flash.sh [/dev/ttyUSB0]` (Linux/macOS). With no port, the Linux script uses the first `/dev/ttyUSB*` or `/dev/ttyACM*`. Your user must be in the `dialout` group (`sudo usermod -aG dialout $USER`, then log in again). Set `NO_MONITOR=1` to skip the serial monitor. Either script installs the ESP32 core and libraries, compiles with `PartitionScheme=min_spiffs`, uploads and opens the serial monitor. Manual equivalent:
+**Easiest: the flashing wizard.** Plug in the ESP32 and run `flash_esp32.bat` (Windows, double-click or from a prompt) or `./flash_esp32.sh` (Linux/macOS). It asks three questions and shows a summary before anything is written:
+
+```text
+Step 1/3 - Which E-Paper module is connected to the ESP32?
+  1. WeAct 2.9in 4-colour        168 x 384 portrait    GDEY029F51H / JD79667  [hardware-verified]
+  2. WeAct 4.2in black/white     400 x 300 landscape   GDEY042T81 / SSD1683   fast refresh, ~32 s pages
+  3. WeAct 4.2in black/white/red 400 x 300 landscape   GDEY042Z98 / SSD1683   ~60 s pages
+  4. WeAct 4.2in 4-colour        400 x 300 landscape   GDEY0420F51 / HX8717   ~66 s pages
+Step 2/3 - What do you want to flash?   1. Lalit Stock firmware   2. Display test (Hello World)
+Step 3/3 - Which serial port is the ESP32 on?   1. COM3  serial  Serial Port (USB)
+  Module : WeAct 4.2in black/white/red, 400x300   (build 420_bwr)
+Proceed? [Y/n]
+```
+
+Choose the **same module** when you register the device in the web admin (step 3).
+
+1. **Check the display first:** run the wizard and choose *Display test*, or `upload.bat COM3 <build>` / `./upload.sh [port] <build>` (for example `upload.bat COM3 420_bwr`). It flashes the Hello World sketch in `ESP32_EPaper_Test/` for that module. Continue only when it shows on the panel.
+2. **Flash the firmware:** run the wizard and choose *Lalit Stock firmware*, or `firmware\flash.bat COM3 <build>` (Windows) / `firmware/flash.sh [/dev/ttyUSB0] <build>` (Linux/macOS), where `<build>` is `290_4c` (default), `420_bw`, `420_bwr` or `420_4c`. With no port, the Linux script uses the first `/dev/ttyUSB*` or `/dev/ttyACM*`. Your user must be in the `dialout` group (`sudo usermod -aG dialout $USER`, then log in again). Set `NO_MONITOR=1` to skip the serial monitor. Either script installs the ESP32 core and libraries, compiles with `PartitionScheme=min_spiffs`, uploads and opens the serial monitor. Manual equivalent:
    ```bash
-   arduino-cli compile --fqbn esp32:esp32:esp32:PartitionScheme=min_spiffs firmware/LalitStockFirmware
+   arduino-cli compile --fqbn esp32:esp32:esp32:PartitionScheme=min_spiffs \
+     --build-property "compiler.cpp.extra_flags=-DLS_PANEL=LS_PANEL_420_BWR" firmware/LalitStockFirmware
    arduino-cli upload  -p COM3 --fqbn esp32:esp32:esp32:PartitionScheme=min_spiffs firmware/LalitStockFirmware
    ```
-3. **Server side:** in **E-Paper Devices → Register device**, enter the device ID shown on the E-Paper setup screen (for example `LS-A1B2C3`) and assign a portfolio. In **API Management**, create a key for that device and copy it.
+3. **Server side:** in **E-Paper Devices → Register device**, enter the device ID shown on the E-Paper setup screen (for example `LS-A1B2C3`), choose the **E-Paper module** (the same option as in the wizard) and assign a portfolio. In **API Management**, create a key for that device and copy it.
 4. **Setup portal (first boot):** the device opens a WPA2 access point `LalitStock-Setup-XXXX`, with the password shown on the E-Paper and on serial. Connect to it and browse to **http://192.168.4.1**.
 5. Enter the Wi-Fi SSID and password, the **API URL** (for example `https://stock.example.com`), the **device API key**, and an **admin password** (at least 8 characters). Click **Test Wi-Fi** and **Test API**, then **Save**. The device restarts into normal mode.
 6. **Usage:**
-   - The panel rotates *Portfolio → Holdings → Benchmarks* at the effective safe duration (60 s), with `PAGE n/N` and the data age in the footer.
+   - The panel rotates *Portfolio → Holdings → Benchmarks* at the module's effective safe duration (60 s on the 2.9", 32/60/66 s on the 4.2" B/W, B/W/R and 4-colour), with `PAGE n/N` and the data age in the footer.
    - Device admin page: `http://<device-ip>/`, with user `admin` and your admin password. It offers Pause/Resume, Next page, Go to page N, status and diagnostics, all settings, Test Wi-Fi/API, Restart and Factory reset (type `RESET`).
    - The device should show **online** in **E-Paper Devices** within one heartbeat interval.
 7. **Recovery (BOOT button, GPIO0):** hold for **5 s** to return to the setup portal with settings kept. Hold for **15 s** to factory reset.
@@ -347,11 +396,11 @@ Full guide: [docs/ESP32_SETUP.md](docs/ESP32_SETUP.md) · wiring reference: [ESP
 
 ## E-Paper pagination and refresh safety
 
-The four-colour panel is a full-page display, so the device rotates **pages**. It never scrolls.
+Every supported panel is a full-page display, so the device rotates **pages**. It never scrolls. The 2.9" panel uses a 168 × 384 portrait layout; the 4.2" panels use a 400 × 300 landscape layout with larger, two-line rows (symbol, price and day % in large text; company, P/L and day change below).
 
 - Rotation is enabled by default. Pages advance 1 → N and wrap back to 1, with `PAGE n/N` on every page.
 - **Pause / Resume**, **Next page** and **Go to page N** are available on the device admin page and in the simulator. Manual changes queue behind the refresh guard. The paused state and the selected page persist across reboots.
-- The **requested** default duration is **10 s**. A full refresh of this panel takes up to 25 s (GxEPD2 `full_refresh_time`; measured 21.4 s), so the firmware enforces an **effective hardware-safe duration**: `max(requested, ceil(25 s × 1.2) + 30 s) = 60 s`. Both values and the reason are shown on the device page, in the simulator and in device diagnostics. Unknown panels use a 180 s fallback. See [docs/HARDWARE_VERIFICATION.md](docs/HARDWARE_VERIFICATION.md).
+- The **requested** default duration is **10 s**. A full refresh of this panel takes up to 25 s (GxEPD2 `full_refresh_time`; measured 21.4 s), so the firmware enforces an **effective hardware-safe duration**: `max(requested, ceil(25 s × 1.2) + 30 s) = 60 s`. Both values and the reason are shown on the device page, in the simulator and in device diagnostics. The 4.2" panels use the same formula with their GxEPD2 timings: black/white 1.2 s → **32 s**, black/white/red 25 s → **60 s**, 4-colour 30 s → **66 s** (not yet measured on hardware). Unknown panels use a 180 s fallback. See [docs/HARDWARE_VERIFICATION.md](docs/HARDWARE_VERIFICATION.md).
 - API polling, page rotation, heartbeat and NTP run on **independent** schedules. A page change never triggers a fetch, and a slow fetch (on its own FreeRTOS task) never blocks rotation.
 - On failure the display keeps the cached data and shows `CACHED` / `OFFLINE <age>`. It never blanks.
 
@@ -389,6 +438,9 @@ Common problems, from real deployments. More in [docs/TROUBLESHOOTING.md](docs/T
 | `HTTP 403` / `API key rejected` | The key is not **bound to a device**, or it is bound to a different device ID, revoked or expired. Create the key from the device's row in **E-Paper Devices**. |
 | `HTTP 401` | The key is mistyped or was revoked. Keys are shown only once, so create a new one. |
 | TLS / handshake error with `https://<ip>:5175` | The ESP32 does not trust Caddy's local CA. Use `http://<pc-ip>:<DEVICE_LAN_PORT>` on a LAN, or a real domain with Let's Encrypt. |
+| 4.2" panel blank, garbled, or only half drawn | The firmware was built for another module. Run the wizard again and pick the module printed on the flex cable; check with the *Display test* first. |
+| `invalid response: layout is not 400x300` (or `168x384`) | The server laid out pages for a different panel. Update the server (`./manage.sh update`); the device sends its panel with every fetch. A cached page from the previous panel is discarded after reflashing. |
+| Device card says "registered as … but the device runs firmware for …" | The module chosen at registration differs from the flashed firmware. The device's own panel is used; edit the device (**Configure**) or reflash with the matching module. |
 | `401` when opening the device admin page | It uses its **own** admin password (set in the setup portal), not the web-app login. Forgot it? Hold BOOT for 15 s to factory reset. |
 
 ## Operations with `manage.sh`
@@ -438,15 +490,16 @@ The Python, TypeScript and C++ implementations of the device rules all run again
 ```text
 backend/            FastAPI app, services (ledger, market data, dashboard builder, AI), Alembic, tests
 frontend/           React admin UI and E-Paper simulator (src/sim)
-firmware/           ESP32 firmware (LalitStockFirmware/), host tests, flash.bat / flash.sh
-shared/             Device contract: config schema, panel profiles, layout, fixtures, test vectors
+firmware/           ESP32 firmware (LalitStockFirmware/), host tests, flash.bat / flash.sh [port] [build]
+flash_esp32.bat/.sh Interactive flashing wizard: choose the E-Paper module, firmware or display test, and port
+shared/             Device contract: config schema, panel profiles (+ palettes), layouts (168x384, 400x300), fixtures, test vectors
 deploy/             Caddyfile, extra-ca/ for TLS-inspecting proxies
 docs/               Deployment, API, ESP32 setup, render contract, simulator, backup, troubleshooting, screenshots
 tools/gen_shared.py Generator for derived contract files
 tools/esp32_flash.sh Shared compile/upload helper for flash.sh and upload.sh
 ESP32_EPaper_Test/  Display-only hardware test sketch
 manage.sh           Operations tool (bash: Linux, macOS, Git Bash)
-upload.bat / .sh    Flash the hardware test sketch (Windows / Linux)
+upload.bat / .sh    Flash the hardware test sketch for a module (Windows / Linux): upload.bat COM3 420_bwr
 push.bat / .sh      Commit everything and push the current branch (Windows / Linux)
 ```
 

@@ -8,7 +8,7 @@ from __future__ import annotations
 import json
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
@@ -60,7 +60,8 @@ def _event(db: Session, kind: str, message: str) -> None:
 def contract(_: User = Depends(require_simulator)):
     return {"device_config": device_rules.load_shared("device_config.json"),
             "panel_profiles": device_rules.panel_profiles(),
-            "layout": device_rules.layout()}
+            "layout": device_rules.layout(), "layouts": {n: device_rules.layout(n) for n in
+                                                          ("layout.json", "layout_400x300.json")}}
 
 
 @router.get("/config")
@@ -151,21 +152,27 @@ def refresh_check(profile: str, requested: int, _: User = Depends(require_simula
 
 
 @router.get("/fixture")
-def fixture(_: User = Depends(require_simulator)):
-    path = get_settings().shared_dir / "fixtures" / "dashboard_3page.json"
+def fixture(panel: str | None = Query(None, max_length=40), _: User = Depends(require_simulator)):
+    """The generated shared fixture for the panel's build (same file the firmware host tests use)."""
+    spec = device_rules.panel_spec(panel)
+    build = device_rules.panel_profiles()["profiles"][spec["profile"]].get("build")
+    name = "dashboard_3page.json" if spec["layout"]["id"] == "168x384" else f"dashboard_3page_{build}.json"
+    path = get_settings().shared_dir / "fixtures" / name
     return json.loads(path.read_text(encoding="utf-8"))
 
 
 @router.get("/dashboard")
 def live_dashboard(portfolio_id: int | None = None, rows: int = 8, summary: bool = True, bench: bool = True,
-                   db: Session = Depends(get_db), _: User = Depends(require_simulator)):
+                   panel: str | None = Query(None, max_length=40), db: Session = Depends(get_db),
+                   _: User = Depends(require_simulator)):
     """Live mode: the exact payload /api/v1/device/dashboard would return, authorised by the admin
     session instead of a real device key (no real API key needed)."""
     st = _state(db)
     pf = db.get(Portfolio, portfolio_id) if portfolio_id else None
     display = {"rows_per_page": max(4, min(8, rows)), "show_summary_page": summary, "show_benchmarks_page": bench}
     return dashboard_for(db, portfolio=pf, display=display, device_uid=st.config.get("device_id", "SIM-001"),
-                         device_name=st.config.get("device_name", "Simulated E-Paper"))
+                         device_name=st.config.get("device_name", "Simulated E-Paper"),
+                         panel_profile=panel or st.config.get("panel_profile"))
 
 
 class EventIn(BaseModel):

@@ -46,10 +46,10 @@ export function Stat({ label, value, sub, cls = "" }: { label: string; value: Re
   );
 }
 
-export function Modal({ title, onClose, children }: { title: string; onClose: () => void; children: ReactNode }) {
+export function Modal({ title, onClose, children, wide = false }: { title: string; onClose: () => void; children: ReactNode; wide?: boolean }) {
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={onClose}>
-      <div className="card max-w-lg w-full max-h-[90vh] overflow-auto" onClick={(e) => e.stopPropagation()}>
+      <div className={`card ${wide ? "max-w-4xl" : "max-w-lg"} w-full max-h-[90vh] overflow-auto`} onClick={(e) => e.stopPropagation()}>
         <div className="flex justify-between items-center mb-2">
           <h3 className="h2 mb-0">{title}</h3>
           <button className="btn-alt" onClick={onClose}>✕</button>

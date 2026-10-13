@@ -7,7 +7,7 @@ import { get, post, put } from "../api";
 import EPaperCanvas, { ColorLegend } from "../components/EPaperCanvas";
 import { ErrorBox, Field, Notice, useAction } from "../components/ui";
 import {
-  CONFIG_FIELDS, computeRefresh, Dashboard, headerFooterOps, HeaderStatus, PageRotator, PANELS, RefreshGate,
+  CONFIG_FIELDS, computeRefresh, Dashboard, headerFooterOps, HeaderStatus, MODULES, PageRotator, PANELS, panelSpec, RefreshGate,
   validateDashboard, validateField,
 } from "../sim/rules";
 
@@ -137,15 +137,16 @@ export default function SimulatorPage() {
       if (f.wifi_down) return finish(false, "Wi-Fi not connected");
       if (f.api_offline) return finish(false, "connection failed: simulated API offline");
       let data: any;
+      const panel = encodeURIComponent(c.panel_profile);
       if (c.mode === "live") {
-        const q = new URLSearchParams({ rows: String(c.rows_per_page), summary: String(c.show_summary_page), bench: String(c.show_benchmarks_page) });
+        const q = new URLSearchParams({ rows: String(c.rows_per_page), summary: String(c.show_summary_page), bench: String(c.show_benchmarks_page), panel: c.panel_profile });
         if (c.portfolio_id) q.set("portfolio_id", String(c.portfolio_id));
         data = await get(`/api/v1/simulator/dashboard?${q}`);
       } else {
-        data = await get("/api/v1/simulator/fixture");
+        data = await get(`/api/v1/simulator/fixture?panel=${panel}`);
       }
-      if (f.invalid) data = { v: 1, pages: "corrupted", data_version: 42 };
-      const why = validateDashboard(data);
+      if (f.invalid) data = { v: 1, layout: panelSpec(c.panel_profile).layout.id, pages: "corrupted", data_version: 42 };
+      const why = validateDashboard(data, panelSpec(c.panel_profile).layout);
       if (why) return finish(false, `invalid response: ${why}`);
       if (f.stale) data = { ...data, status: { ...data.status, stale: true } };
       const now = millisNow() - s.bootMs;
@@ -207,7 +208,9 @@ export default function SimulatorPage() {
       age_s: s.lastOkMs === null ? null : Math.floor((now - s.lastOkMs) / 1000),
       offline,
     };
-    return { header: headerFooterOps(st), body: s.dash ? (s.dash.pages[s.rot.page - 1]?.ops as any[]) ?? null : null, waiting: !s.dash };
+    // A dashboard laid out for another panel (just after switching panels) is never drawn, as on the ESP32.
+    const dash = s.dash && (s.dash.layout ?? "168x384") === panelSpec(c.panel_profile).layout.id ? s.dash : null;
+    return { header: headerFooterOps(st, c.panel_profile), body: dash ? (dash.pages[s.rot.page - 1]?.ops as any[]) ?? null : null, waiting: !dash };
   }
 
   // ---------------------------------------------------------------- controls
@@ -252,10 +255,22 @@ export default function SimulatorPage() {
     }
   };
 
+  // Switching the E-Paper module is like reflashing the ESP32 with another build: save and reboot.
+  const switchModule = async (profile: string) => {
+    if (!cfg || profile === cfg.panel_profile) return;
+    const r: any = await act.run(() => put("/api/v1/simulator/config", { config: { ...cfg, panel_profile: profile }, runtime: { faults } }));
+    if (r) {
+      logEvent("module", `E-Paper module -> ${PANELS.profiles[profile]?.module ?? profile}`);
+      await boot();
+      say(`Now simulating ${PANELS.profiles[profile]?.module}: requested ${r.refresh.requested_s}s → effective ${r.refresh.effective_s}s`);
+    }
+  };
+
   if (error) return <ErrorBox error={error} />;
   if (!cfg || !draft || !refresh) return <div>Loading simulator…</div>;
   const s = sim.current;
   const now = millisNow() - s.bootMs;
+  const spec = panelSpec(cfg.panel_profile);
   const draftRefresh = computeRefresh(draft.panel_profile, validateField("page_duration_s", Number(draft.page_duration_s)).value as number);
   const set = (k: string, v: any) => setDraft({ ...draft, [k]: v });
   const num = (k: string) => (
@@ -271,17 +286,34 @@ export default function SimulatorPage() {
     <div>
       <div className="bg-amber-400 text-black font-semibold px-3 py-2 rounded mb-3">Simulation mode — no physical E-Paper connected (testing/QA only)</div>
       {msg && <div className={`text-sm mb-2 ${msg.bad ? "text-red-700" : "text-emerald-700"}`}>{msg.text}</div>}
+      <div className="card mb-3">
+        <div className="text-sm font-semibold mb-1">E-Paper module</div>
+        <div className="flex flex-wrap gap-1">
+          {MODULES.map((m, i) => (
+            <button key={m.profile} type="button" disabled={act.busy}
+              className={m.profile === cfg.panel_profile ? "btn" : "btn-alt"} onClick={() => switchModule(m.profile)}>
+              {i + 1}. {m.name}
+            </button>
+          ))}
+        </div>
+        <p className="text-xs text-stone-500 mt-1">Same four options as Register device and the flash_esp32 wizard. Switching reboots the simulation with that panel's layout, colours and refresh timing.</p>
+      </div>
       <div className="grid xl:grid-cols-[auto_1fr] gap-4">
         {/* ---------------- preview column */}
         <div>
           <div className="flex gap-4 items-start">
-            <EPaperCanvas header={shown.current.header} body={shown.current.body} waiting={shown.current.waiting} scale={1} label="Exact 168 × 384" />
-            <EPaperCanvas header={shown.current.header} body={shown.current.body} waiting={shown.current.waiting} scale={scale} label={`Scaled ×${scale} (same pixels)`} />
+            <EPaperCanvas header={shown.current.header} body={shown.current.body} waiting={shown.current.waiting} scale={1} layout={spec.layout} label={`Exact ${spec.layout.width} × ${spec.layout.height}`} />
+            {spec.layout.width < 300 && <EPaperCanvas header={shown.current.header} body={shown.current.body} waiting={shown.current.waiting} scale={scale} layout={spec.layout} label={`Scaled ×${scale} (same pixels)`} />}
           </div>
+          {spec.layout.width >= 300 && (
+            <div className="mt-2"><EPaperCanvas header={shown.current.header} body={shown.current.body} waiting={shown.current.waiting} scale={scale} layout={spec.layout} label={`Scaled ×${scale} (same pixels)`} /></div>
+          )}
+          <div className="text-xs text-stone-600 mt-1">Panel: {PANELS.profiles[spec.profile]?.label ?? spec.profile} · {spec.layout.width > spec.layout.height ? "landscape" : "portrait"} · palette {spec.palette}
+            {PANELS.profiles[spec.profile]?.build && <> · firmware build <code>{PANELS.profiles[spec.profile].build}</code></>}</div>
           <div className="flex gap-2 items-center mt-2 text-sm">
             Zoom <input type="range" min={1} max={3} value={scale} onChange={(e) => setScale(Number(e.target.value))} />
           </div>
-          <ColorLegend />
+          <ColorLegend palette={spec.palette} />
           <div className="card mt-3">
             <h2 className="h2">Page controls (same as ESP32 admin page)</h2>
             <div className="text-sm mb-2">
@@ -351,10 +383,10 @@ export default function SimulatorPage() {
               {bool("show_summary_page", "Summary page")}
               {bool("show_benchmarks_page", "Benchmarks page")}
               {bool("reset_page_on_data", "Reset to page 1 on new data")}
-              <Field label="Orientation"><select className="input" value={draft.orientation} onChange={(e) => set("orientation", e.target.value)}><option>portrait</option></select></Field>
+              <Field label="Orientation (fixed by the panel)"><input className="input" readOnly value={panelSpec(draft.panel_profile).layout.width > panelSpec(draft.panel_profile).layout.height ? "landscape 400 × 300" : "portrait 168 × 384"} /></Field>
               <Field label="Panel profile">
                 <select className="input" value={draft.panel_profile} onChange={(e) => set("panel_profile", e.target.value)}>
-                  {(CONFIG_FIELDS.panel_profile.values ?? []).map((p) => <option key={p} value={p}>{p}{PANELS.profiles[p]?.simulation_only ? " (simulation only)" : ""}</option>)}
+                  {(CONFIG_FIELDS.panel_profile.values ?? []).map((p) => <option key={p} value={p}>{PANELS.profiles[p]?.label ?? p}{PANELS.profiles[p]?.simulation_only ? " (simulation only)" : ""}</option>)}
                 </select>
               </Field>
               <Field label="Timezone"><input className="input" value={draft.timezone} onChange={(e) => set("timezone", e.target.value)} /></Field>

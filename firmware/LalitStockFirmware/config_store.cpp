@@ -25,7 +25,7 @@ void configDefaults(DeviceConfig& c) {
   c.rows_per_page = CFG_ROWS_PER_PAGE_DEFAULT;
   c.show_summary_page = CFG_SHOW_SUMMARY_PAGE_DEFAULT;
   c.show_benchmarks_page = CFG_SHOW_BENCHMARKS_PAGE_DEFAULT;
-  strcpy(c.panel_profile, CFG_PANEL_PROFILE_DEFAULT);
+  strcpy(c.panel_profile, LS_PANEL_PROFILE);
   strcpy(c.timezone, CFG_TIMEZONE_DEFAULT);
   strcpy(c.posix_tz, CFG_POSIX_TZ_DEFAULT);
   strcpy(c.ntp_server, CFG_NTP_SERVER_DEFAULT);
@@ -54,7 +54,7 @@ void configLoad(DeviceConfig& c) {
   c.rows_per_page = clampInt(p, "rows", CFG_ROWS_PER_PAGE_MIN, CFG_ROWS_PER_PAGE_MAX, CFG_ROWS_PER_PAGE_DEFAULT);
   c.show_summary_page = p.getBool("sum", c.show_summary_page);
   c.show_benchmarks_page = p.getBool("bench", c.show_benchmarks_page);
-  copyStr(c.panel_profile, sizeof c.panel_profile, p.getString("panel", ""), CFG_PANEL_PROFILE_DEFAULT);
+  copyStr(c.panel_profile, sizeof c.panel_profile, p.getString("panel", ""), LS_PANEL_PROFILE);
   copyStr(c.timezone, sizeof c.timezone, p.getString("tz", ""), CFG_TIMEZONE_DEFAULT);
   copyStr(c.posix_tz, sizeof c.posix_tz, p.getString("ptz", ""), CFG_POSIX_TZ_DEFAULT);
   copyStr(c.ntp_server, sizeof c.ntp_server, p.getString("ntp", ""), CFG_NTP_SERVER_DEFAULT);
@@ -66,9 +66,10 @@ void configLoad(DeviceConfig& c) {
   copyStr(c.admin_pass, sizeof c.admin_pass, p.getString("admin", ""), "");
   c.root_ca = p.getString("ca", "");
   p.end();
-  // An unknown/unsupported profile name falls back to the verified default (UNKNOWN stays allowed).
-  if (!ls::findProfile(c.panel_profile) && strcmp(c.panel_profile, "UNKNOWN") != 0)
-    strcpy(c.panel_profile, CFG_PANEL_PROFILE_DEFAULT);
+  // The timing profile must match the compiled panel (e.g. after reflashing a 2.9in board with a 4.2in
+  // build); UNKNOWN stays allowed and applies the conservative fallback.
+  if (strcmp(c.panel_profile, LS_PANEL_PROFILE) != 0 && strcmp(c.panel_profile, "UNKNOWN") != 0)
+    strcpy(c.panel_profile, LS_PANEL_PROFILE);
 }
 
 void configSave(const DeviceConfig& c) {

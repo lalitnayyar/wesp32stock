@@ -3,8 +3,11 @@ import refresh from "@shared/test_vectors/refresh_cases.json";
 import rotation from "@shared/test_vectors/rotation_cases.json";
 import header from "@shared/test_vectors/header_cases.json";
 import fixture from "@shared/fixtures/dashboard_3page.json";
-import { computeRefresh, defaultConfig, formatAge, headerFooterOps, HeaderStatus, Op, PageRotator, RefreshGate,
-  validateDashboard, validateField } from "./rules";
+import fixtureBw from "@shared/fixtures/dashboard_3page_420_bw.json";
+import fixtureBwr from "@shared/fixtures/dashboard_3page_420_bwr.json";
+import fixture4c from "@shared/fixtures/dashboard_3page_420_4c.json";
+import { computeRefresh, defaultConfig, formatAge, headerFooterOps, HeaderStatus, Op, PageRotator, panelSpec,
+  RefreshGate, validateDashboard, validateField } from "./rules";
 import { drawOp, Surface } from "./render";
 
 describe("refresh safety (shared vectors)", () => {
@@ -63,7 +66,7 @@ describe("rotation (shared vectors)", () => {
 describe("header/footer ops (shared vectors)", () => {
   for (const a of header.age_cases) it(`age ${a.text}`, () => expect(formatAge(a.age_s)).toBe(a.text));
   for (const c of header.cases) {
-    it(c.name, () => expect(headerFooterOps(c.status as HeaderStatus)).toEqual(c.ops));
+    it(c.name, () => expect(headerFooterOps(c.status as HeaderStatus, (c as { profile?: string }).profile)).toEqual(c.ops));
   }
 });
 
@@ -83,6 +86,28 @@ describe("fixture + renderer", () => {
     expect(pixels).toBeGreaterThan(1000);
     expect(maxX).toBeLessThanOrEqual(168);
     expect(maxY).toBeLessThanOrEqual(384);
+  });
+  const panels: [string, unknown][] = [["SSD1683_GDEY042T81", fixtureBw], ["SSD1683_GDEY042Z98", fixtureBwr],
+    ["HX8717_GDEY0420F51", fixture4c]];
+  for (const [profile, fx] of panels) {
+    it(`4.2in fixture for ${profile}: 400x300, inside the canvas, panel colours only`, () => {
+      const spec = panelSpec(profile);
+      expect(validateDashboard(fx, spec.layout)).toBeNull();
+      expect(validateDashboard(fx)).toBe("layout is not 168x384");
+      let maxX = 0, maxY = 0;
+      const s: Surface = { fillRect: (x, y, w, h) => { maxX = Math.max(maxX, x + w); maxY = Math.max(maxY, y + h); } };
+      for (const p of (fx as { pages: { ops: Op[] }[] }).pages) for (const op of p.ops) {
+        drawOp(s, op, spec.layout);
+        const col = op[0] === "F" || op[0] === "R" ? op[5] : op[4];
+        expect(spec.palette).toContain(col);
+      }
+      expect(maxX).toBeLessThanOrEqual(400);
+      expect(maxY).toBeLessThanOrEqual(spec.layout.body.bottom + 1);
+    });
+  }
+  it("unknown panel profiles fall back to the 2.9in layout", () => {
+    expect(panelSpec("BOGUS").layout.id).toBe("168x384");
+    expect(panelSpec("SSD1683_GDEY042T81").roles.flag_bg).toBe("K");
   });
   it("draws the classic 'A' glyph like Adafruit GFX", () => {
     const px = new Set<string>();

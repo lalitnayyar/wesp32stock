@@ -3,14 +3,41 @@
 // Owner: Lalit Nayyar <consult@lalit.cloud>. Not financial advice.
 import deviceConfig from "@shared/device_config.json";
 import layout from "@shared/layout.json";
+import layout400x300 from "@shared/layout_400x300.json";
 import panelProfiles from "@shared/panel_profiles.json";
 
-export const LAYOUT = layout;
+export type Layout = typeof layout;
+/** Default (2.9in 4-colour portrait) layout. Use panelSpec(profile).layout for a specific panel. */
+export const LAYOUT: Layout = layout;
+export const LAYOUTS: Record<string, Layout> = { "layout.json": layout, "layout_400x300.json": layout400x300 };
+export const DEFAULT_PROFILE = "JD79667_GDEY029F51H";
 export const CONFIG_FIELDS = deviceConfig.fields as Record<string, FieldSpec>;
-export const PANELS = panelProfiles as {
+export type Roles = { accent: string; neg: string; rule: string; flag_bg: string; flag_fg: string };
+export const PANELS = panelProfiles as unknown as {
   fallback_s: number;
+  palette_roles: Record<string, Roles>;
   profiles: Record<string, PanelProfile>;
 };
+
+/** The four real E-Paper modules (profiles with a firmware build), in the same order as the flashing wizard. */
+export const MODULES: { profile: string; name: string; build: string }[] = Object.entries(PANELS.profiles)
+  .filter(([, p]) => p.build)
+  .map(([profile, p]) => ({ profile, name: p.module ?? p.label, build: p.build as string }));
+
+export interface PanelSpec {
+  profile: string;
+  layout: Layout;
+  palette: string;
+  roles: Roles;
+}
+
+/** Layout + palette for a panel profile; unknown profiles use the 2.9in panel (same rule as the server). */
+export function panelSpec(profile?: string | null): PanelSpec {
+  const name = profile && PANELS.profiles[profile] ? profile : DEFAULT_PROFILE;
+  const p = PANELS.profiles[name];
+  const palette = p.palette ?? "KWRY";
+  return { profile: name, layout: LAYOUTS[p.layout ?? "layout.json"], palette, roles: PANELS.palette_roles[palette] };
+}
 
 export interface FieldSpec {
   type: "bool" | "int" | "enum" | "string";
@@ -24,6 +51,11 @@ export interface FieldSpec {
 
 export interface PanelProfile {
   label: string;
+  module?: string;
+  build?: string;
+  driver?: string;
+  layout?: string;
+  palette?: string;
   full_refresh_ms: number;
   safety_margin_pct: number;
   min_dwell_s: number;
@@ -221,37 +253,38 @@ export function formatAge(s: number): string {
   return `${Math.floor(s / 86400)}d`;
 }
 
-const clip = (t: string) => t.slice(0, LAYOUT.limits.max_text_len);
-const rightX = (t: string, size = 1) => LAYOUT.width - LAYOUT.margin_x - t.length * LAYOUT.char_w * size;
-
-export function headerFooterOps(s: HeaderStatus): Op[] {
-  const L = LAYOUT,
-    H = L.header,
+/** Header/footer for the given panel (mirror of ls::buildHeaderFooterOps for the compiled LS_PANEL). */
+export function headerFooterOps(s: HeaderStatus, profile?: string | null): Op[] {
+  const { layout: L, roles: c } = panelSpec(profile);
+  const H = L.header,
     m = L.margin_x;
+  const clip = (t: string) => t.slice(0, L.limits.max_text_len);
+  const rightX = (t: string, size = 1) => L.width - m - t.length * L.char_w * size;
   const ops: Op[] = [
-    ["F", 0, 0, L.width, H.bar_h, "R"],
-    ["T", m, H.title_y, 1, "W", H.title],
-    s.datetime ? ["T", m, H.datetime_y, 1, "K", clip(s.datetime)] : ["T", m, H.datetime_y, 1, "R", "NO TIME SYNC"],
-    ["T", m, H.status_y, 1, "K", `Upd ${s.last_ok ?? "--:--"}`],
-    ["T", H.wifi_x, H.status_y, 1, s.wifi ? "K" : "R", s.wifi ? "WiFi:OK" : "WiFi:--"],
-    ["T", H.api_x, H.status_y, 1, s.api === "OK" ? "K" : "R", `API:${s.api}`],
-    ["T", m, H.market_y, 1, "K", `Mkt:${s.market || "--"}`],
+    ["F", 0, 0, L.width, H.bar_h, c.accent],
+    ["T", m, H.title_y, H.title_size, "W", H.title],
+    s.datetime ? ["T", m, H.datetime_y, 1, "K", clip(s.datetime)] : ["T", m, H.datetime_y, 1, c.neg, "NO TIME SYNC"],
+    ["T", H.upd_x, H.status_y, 1, "K", `Upd ${s.last_ok ?? "--:--"}`],
+    ["T", H.wifi_x, H.status_y, 1, s.wifi ? "K" : c.neg, s.wifi ? "WiFi:OK" : "WiFi:--"],
+    ["T", H.api_x, H.status_y, 1, s.api === "OK" ? "K" : c.neg, `API:${s.api}`],
+    ["T", H.market_x, H.market_y, 1, "K", `Mkt:${s.market || "--"}`],
   ];
   if (s.flag) {
     const w = s.flag.length * L.char_w + 4;
     const x = L.width - m - w;
-    ops.push(["F", x, H.market_y - 2, w, 11, "Y"], ["T", x + 2, H.market_y, 1, "K", s.flag]);
+    ops.push(["F", x, H.market_y - 2, w, 11, c.flag_bg], ["T", x + 2, H.market_y, 1, c.flag_fg, s.flag]);
   }
   ops.push(["H", 0, H.sep_y, L.width, "K"], ["H", 0, L.footer.sep_y, L.width, "K"]);
   ops.push(["T", m, L.footer.text_y, 1, "K", `PAGE ${s.page}/${s.pages}`]);
   const age = s.age_s === null || s.age_s < 0 ? "--" : formatAge(s.age_s);
   const txt = s.offline ? `OFFLINE ${age}` : `Age ${age}`;
-  ops.push(["T", rightX(txt), L.footer.text_y, 1, s.offline ? "R" : "K", txt]);
+  ops.push(["T", rightX(txt), L.footer.text_y, 1, s.offline ? c.neg : "K", txt]);
   return ops;
 }
 
 export interface Dashboard {
   v: number;
+  layout?: string;
   data_version: string;
   generated_at: string;
   tz: string;
@@ -261,13 +294,14 @@ export interface Dashboard {
   disclaimer?: string;
 }
 
-/** Same structural validation as the firmware (net_client.cpp validDashboard). */
-export function validateDashboard(d: unknown): string | null {
+/** Same structural validation as the firmware (net_client.cpp validDashboard) for the given layout. */
+export function validateDashboard(d: unknown, L: Layout = LAYOUT): string | null {
   const x = d as Dashboard;
   if (!x || typeof x !== "object" || x.v !== 1) return "unsupported contract version";
-  if (!Array.isArray(x.pages) || x.pages.length < 1 || x.pages.length > LAYOUT.limits.max_pages) return "bad page count";
+  if ((x.layout ?? "168x384") !== L.id) return `layout is not ${L.id}`;
+  if (!Array.isArray(x.pages) || x.pages.length < 1 || x.pages.length > L.limits.max_pages) return "bad page count";
   for (const p of x.pages) {
-    if (!Array.isArray(p.ops) || p.ops.length > LAYOUT.limits.max_ops_per_page) return "bad ops";
+    if (!Array.isArray(p.ops) || p.ops.length > L.limits.max_ops_per_page) return "bad ops";
     for (const op of p.ops) if (!["T", "F", "R", "H"].includes(op?.[0] as string)) return "unknown op";
   }
   if (typeof x.data_version !== "string") return "missing data_version";

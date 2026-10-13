@@ -20,6 +20,9 @@ fi
 # Native Windows compilers (MinGW) need Windows-style paths when run from Git Bash/MSYS.
 native() { if command -v cygpath >/dev/null 2>&1; then cygpath -m "$1"; else printf '%s' "$1"; fi; }
 OUT="$(native "${TMPDIR:-/tmp}")/ls_host_test$$"
-g++ -std=c++17 -Wall -Wextra -O1 -I"$(native "$AJ")" "$(native "$HERE/host_test.cpp")" -o "$OUT"
-"$OUT" "$(native "$ROOT")"
+# One build per supported panel (see LS_PANEL_* in shared_contract.h): layout, palette and vectors differ.
+for panel in 290_4C 420_BW 420_BWR 420_4C; do
+  g++ -std=c++17 -Wall -Wextra -O1 -DLS_PANEL=LS_PANEL_$panel -I"$(native "$AJ")" "$(native "$HERE/host_test.cpp")" -o "$OUT"
+  "$OUT" "$(native "$ROOT")"
+done
 rm -f "$OUT" "$OUT.exe"

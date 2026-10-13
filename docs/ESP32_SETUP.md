@@ -2,17 +2,33 @@
 
 Owner: Lalit Nayyar · consult@lalit.cloud. Not financial advice.
 
-## Hardware (verified)
+## Hardware
 
-ESP32-WROOM-32 (board profile *ESP32 Dev Module*) + WeAct Studio 2.9" 4-colour E-Paper, 168 × 384, panel GDEY029F51H, controller JD79667. Wiring (3V3 only): BUSY → GPIO4, RES → GPIO26, D/C → GPIO25, CS → GPIO5, SCL/SCK → GPIO18, SDA/MOSI → GPIO23. Full table: [../ESP32_WeAct_2.9_EPaper.md](../ESP32_WeAct_2.9_EPaper.md). Run the display-only test first: `upload.bat COM3`.
+ESP32-WROOM-32 (board profile *ESP32 Dev Module*) + one of four WeAct Studio E-Paper modules:
+
+| # | WeAct Studio module | Resolution | Colours | Panel / controller | GxEPD2 driver | Firmware build | Effective page time (10 s requested) |
+|---|---|---|---|---|---|---|---|
+| 1 | **2.9" 4-colour** (default) | 168 × 384 portrait | black, white, red, yellow | GDEY029F51H / JD79667 | `GxEPD2_290c_GDEY029F51H` | `290_4c` | 60 s · **hardware-verified** |
+| 2 | **4.2" black/white** | 400 × 300 landscape | black, white | GDEY042T81 / SSD1683 | `GxEPD2_420_GDEY042T81` | `420_bw` | 32 s (≈1.2 s refresh) |
+| 3 | **4.2" black/white/red** | 400 × 300 landscape | black, white, red | GDEY042Z98 / SSD1683 | `GxEPD2_420c_GDEY042Z98` | `420_bwr` | 60 s (≈25 s refresh) |
+| 4 | **4.2" 4-colour** | 400 × 300 landscape | black, white, red, yellow | GDEY0420F51 / HX8717 | `GxEPD2_420c_GDEY0420F51` | `420_4c` | 66 s (≈30 s refresh) |
+
+Only the 2.9" module is verified on hardware so far; the 4.2" timings come from the GxEPD2 1.6.9 driver sources (see [HARDWARE_VERIFICATION.md](HARDWARE_VERIFICATION.md)). All modules share the same wiring (3V3 only): BUSY → GPIO4, RES → GPIO26, D/C → GPIO25, CS → GPIO5, SCL/SCK → GPIO18, SDA/MOSI → GPIO23. Full table: [../ESP32_WeAct_2.9_EPaper.md](../ESP32_WeAct_2.9_EPaper.md). Run the display-only test first: `upload.bat COM3 <build>` or the wizard's *Display test* option.
 
 ## Build and flash
 
+**Interactive:** `flash_esp32.bat` (Windows) or `./flash_esp32.sh` (Linux/macOS) asks for the module (1-4), firmware or display test, and the serial port (detected ports are listed), shows a summary, and asks before flashing. Five invalid answers or closed input cancel without flashing.
+
+**Direct:**
+
 ```bat
-firmware\flash.bat COM3
+firmware\flash.bat COM3              :: 2.9in 4-colour (default)
+firmware\flash.bat COM3 420_bwr      :: 4.2in black/white/red; also 420_bw, 420_4c
 ```
 
-On Linux/macOS: `firmware/flash.sh [/dev/ttyUSB0]` (port auto-detected if omitted; needs `dialout` group membership; `NO_MONITOR=1` skips the monitor).
+On Linux/macOS: `firmware/flash.sh [/dev/ttyUSB0] [build]` (port auto-detected if omitted or ""; needs `dialout` group membership; `NO_MONITOR=1` skips the monitor).
+
+The module is a compile-time choice: the scripts pass `-DLS_PANEL=LS_PANEL_<BUILD>` (via `compiler.cpp.extra_flags`), which selects the GxEPD2 driver in `epaper.cpp` and the layout, palette and timing block in the generated `shared_contract.h`. The device sends its panel (`&panel=<profile>`) with every dashboard request, so the server returns pages laid out for that panel, and it rejects pages for another layout. Reflashing a board with a different module build is safe: a cached dashboard for the old layout is discarded and the panel timing profile resets to the new module.
 
 This installs the ESP32 core and the GxEPD2, Adafruit GFX and ArduinoJson libraries if they are missing, compiles with `PartitionScheme=min_spiffs` (the firmware is about 1.3 MB, which does not fit the default 1.25 MB app partition), uploads, and opens the serial monitor at 115200. Manual equivalent:
 
@@ -21,11 +37,11 @@ arduino-cli compile --fqbn esp32:esp32:esp32:PartitionScheme=min_spiffs firmware
 arduino-cli upload -p COM3 --fqbn esp32:esp32:esp32:PartitionScheme=min_spiffs firmware/LalitStockFirmware
 ```
 
-Verified with esp32 core 3.3.12, GxEPD2 1.6.9, Adafruit GFX 1.12.6 and ArduinoJson 7.4.3. `shared_contract.h` is generated from `shared/*.json` by `tools/gen_shared.py`; do not edit it by hand.
+Verified with esp32 core 3.3.12, GxEPD2 1.6.9, Adafruit GFX 1.12.6 and ArduinoJson 7.4.3. All four builds compile at about 1.30 MB (66 %) with about 67-69 KB of RAM used by globals. `shared_contract.h` is generated from `shared/*.json` by `tools/gen_shared.py`; do not edit it by hand.
 
 ## Server side first
 
-In the web admin, open **E-Paper Devices → Register device**. Use the device ID shown on the setup screen (for example `LS-A1B2C3`), assign a portfolio, then click **New API key** and copy the key (it is shown only once).
+In the web admin, open **E-Paper Devices → Register device**. Use the device ID shown on the setup screen (for example `LS-A1B2C3`), choose the same **E-Paper module** you flashed, assign a portfolio, then click **New API key** and copy the key (it is shown only once).
 
 ## First boot: setup portal
 

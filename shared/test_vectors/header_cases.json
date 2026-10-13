@@ -1,14 +1,18 @@
 {
-  "$comment": "Expected header/footer draw-ops for given device status. Op formats: [\"F\",x,y,w,h,color] filled rect, [\"R\",x,y,w,h,color] outline rect, [\"H\",x,y,w,color] horizontal line, [\"T\",x,y,size,color,text] text. Firmware (g++ host test) and simulator (vitest) must both reproduce these exactly.",
+  "$comment": "Expected header/footer draw-ops for given device status. Op formats: [\"F\",x,y,w,h,color] filled rect, [\"R\",x,y,w,h,color] outline rect, [\"H\",x,y,w,color] horizontal line, [\"T\",x,y,size,color,text] text. Firmware (g++ host test) and simulator (vitest) must both reproduce these exactly. Cases without 'profile' use the 2.9in panel (JD79667_GDEY029F51H, 168x384, KWRY); landscape cases name a 4.2in profile and are checked by the firmware build for that panel.",
   "age_cases": [
-    { "age_s": 0, "text": "0s" }, { "age_s": 59, "text": "59s" }, { "age_s": 60, "text": "1m" },
-    { "age_s": 3599, "text": "59m" }, { "age_s": 3600, "text": "1h" }, { "age_s": 172799, "text": "47h" },
-    { "age_s": 172800, "text": "2d" }
+    {"age_s": 0, "text": "0s"},
+    {"age_s": 59, "text": "59s"},
+    {"age_s": 60, "text": "1m"},
+    {"age_s": 3599, "text": "59m"},
+    {"age_s": 3600, "text": "1h"},
+    {"age_s": 172799, "text": "47h"},
+    {"age_s": 172800, "text": "2d"}
   ],
   "cases": [
     {
       "name": "online_delayed",
-      "status": { "datetime": "12 Oct 2026 14:05", "last_ok": "14:04", "wifi": true, "api": "OK", "market": "OPEN", "flag": "DELAYED", "page": 1, "pages": 3, "age_s": 75, "offline": false },
+      "status": {"datetime": "12 Oct 2026 14:05", "last_ok": "14:04", "wifi": true, "api": "OK", "market": "OPEN", "flag": "DELAYED", "page": 1, "pages": 3, "age_s": 75, "offline": false},
       "ops": [
         ["F", 0, 0, 168, 14, "R"],
         ["T", 3, 3, 1, "W", "Lalit Stock Application"],
@@ -27,7 +31,7 @@
     },
     {
       "name": "offline_no_time",
-      "status": { "datetime": null, "last_ok": null, "wifi": false, "api": "OFF", "market": "CLOSED", "flag": "CACHED", "page": 2, "pages": 2, "age_s": 7300, "offline": true },
+      "status": {"datetime": null, "last_ok": null, "wifi": false, "api": "OFF", "market": "CLOSED", "flag": "CACHED", "page": 2, "pages": 2, "age_s": 7300, "offline": true},
       "ops": [
         ["F", 0, 0, 168, 14, "R"],
         ["T", 3, 3, 1, "W", "Lalit Stock Application"],
@@ -46,7 +50,7 @@
     },
     {
       "name": "no_data_yet",
-      "status": { "datetime": "01 Jan 2026 00:00", "last_ok": null, "wifi": true, "api": "ERR", "market": "--", "flag": "", "page": 1, "pages": 1, "age_s": null, "offline": false },
+      "status": {"datetime": "01 Jan 2026 00:00", "last_ok": null, "wifi": true, "api": "ERR", "market": "--", "flag": "", "page": 1, "pages": 1, "age_s": null, "offline": false},
       "ops": [
         ["F", 0, 0, 168, 14, "R"],
         ["T", 3, 3, 1, "W", "Lalit Stock Application"],
@@ -59,6 +63,66 @@
         ["H", 0, 367, 168, "K"],
         ["T", 3, 373, 1, "K", "PAGE 1/1"],
         ["T", 129, 373, 1, "K", "Age --"]
+      ]
+    },
+    {
+      "name": "landscape_bw_online_delayed",
+      "profile": "SSD1683_GDEY042T81",
+      "status": {"datetime": "12 Oct 2026 14:05", "last_ok": "14:04", "wifi": true, "api": "OK", "market": "OPEN", "flag": "DELAYED", "page": 1, "pages": 3, "age_s": 75, "offline": false},
+      "ops": [
+        ["F", 0, 0, 400, 20, "K"],
+        ["T", 4, 2, 2, "W", "Lalit Stock Application"],
+        ["T", 4, 25, 1, "K", "12 Oct 2026 14:05"],
+        ["T", 114, 25, 1, "K", "Upd 14:04"],
+        ["T", 174, 25, 1, "K", "WiFi:OK"],
+        ["T", 222, 25, 1, "K", "API:OK"],
+        ["T", 270, 25, 1, "K", "Mkt:OPEN"],
+        ["F", 350, 23, 46, 11, "K"],
+        ["T", 352, 25, 1, "W", "DELAYED"],
+        ["H", 0, 37, 400, "K"],
+        ["H", 0, 284, 400, "K"],
+        ["T", 4, 289, 1, "K", "PAGE 1/3"],
+        ["T", 360, 289, 1, "K", "Age 1m"]
+      ]
+    },
+    {
+      "name": "landscape_bwr_offline_no_time",
+      "profile": "SSD1683_GDEY042Z98",
+      "status": {"datetime": null, "last_ok": null, "wifi": false, "api": "OFF", "market": "CLOSED", "flag": "CACHED", "page": 2, "pages": 2, "age_s": 7300, "offline": true},
+      "ops": [
+        ["F", 0, 0, 400, 20, "R"],
+        ["T", 4, 2, 2, "W", "Lalit Stock Application"],
+        ["T", 4, 25, 1, "R", "NO TIME SYNC"],
+        ["T", 114, 25, 1, "K", "Upd --:--"],
+        ["T", 174, 25, 1, "R", "WiFi:--"],
+        ["T", 222, 25, 1, "R", "API:OFF"],
+        ["T", 270, 25, 1, "K", "Mkt:CLOSED"],
+        ["F", 356, 23, 40, 11, "R"],
+        ["T", 358, 25, 1, "W", "CACHED"],
+        ["H", 0, 37, 400, "K"],
+        ["H", 0, 284, 400, "K"],
+        ["T", 4, 289, 1, "K", "PAGE 2/2"],
+        ["T", 336, 289, 1, "R", "OFFLINE 2h"]
+      ]
+    },
+    {
+      "name": "landscape_4c_stale",
+      "profile": "HX8717_GDEY0420F51",
+      "status": {"datetime": "13 Oct 2026 09:30", "last_ok": "09:29", "wifi": true, "api": "OK", "market": "OPEN", "flag": "STALE", "page": 2, "pages": 4, "age_s": 30, "offline": false},
+      "ops": [
+        ["F", 0, 0, 400, 20, "R"],
+        ["T", 4, 2, 2, "W", "Lalit Stock Application"],
+        ["T", 4, 25, 1, "K", "13 Oct 2026 09:30"],
+        ["T", 114, 25, 1, "K", "Upd 09:29"],
+        ["T", 174, 25, 1, "K", "WiFi:OK"],
+        ["T", 222, 25, 1, "K", "API:OK"],
+        ["T", 270, 25, 1, "K", "Mkt:OPEN"],
+        ["F", 362, 23, 34, 11, "Y"],
+        ["T", 364, 25, 1, "K", "STALE"],
+        ["H", 0, 37, 400, "K"],
+        ["H", 0, 284, 400, "K"],
+        ["T", 4, 289, 1, "K", "PAGE 2/4"],
+        ["T", 354, 289, 1, "K", "Age 30s"]
       ]
     }
   ]

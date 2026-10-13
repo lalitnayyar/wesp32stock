@@ -5,7 +5,7 @@ import re
 from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from sqlalchemy.orm import Session
 
 from ..core.db import get_db
@@ -27,6 +27,17 @@ class DisplayConfig(BaseModel):
     show_benchmarks_page: bool = True
     page_order: list[str] = ["summary", "holdings", "benchmarks"]
     sort: str = Field("value", pattern="^(value|ticker|change)$")
+    # E-Paper module chosen at registration (a real panel profile). The panel the device's firmware reports
+    # when it fetches takes precedence, because that is the hardware actually connected.
+    panel_profile: str = device_rules.DEFAULT_PROFILE
+
+    @field_validator("panel_profile")
+    @classmethod
+    def _known_module(cls, v: str) -> str:
+        profiles = device_rules.panel_profiles()["profiles"]
+        if v not in profiles or not profiles[v].get("build"):
+            raise ValueError(f"unknown E-Paper module; choose one of {', '.join(device_rules.modules())}")
+        return v
 
 
 class DeviceIn(BaseModel):
@@ -44,6 +55,8 @@ class DeviceUpdate(BaseModel):
 
 def device_out(db: Session, d: Device) -> dict:
     rep = d.reported or {}
+    registered = (d.display_config or {}).get("panel_profile") or device_rules.DEFAULT_PROFILE
+    reported = rep.get("panel_profile")
     refresh = None
     if rep.get("panel_profile") and isinstance(rep.get("requested_s"), int):
         refresh = device_rules.compute_refresh(rep["panel_profile"], rep["requested_s"]).as_dict()
@@ -51,7 +64,9 @@ def device_out(db: Session, d: Device) -> dict:
             "display_config": {**DEFAULT_DISPLAY, **(d.display_config or {})}, "firmware": d.firmware,
             "last_heartbeat_at": d.last_heartbeat_at, "last_fetch_at": d.last_fetch_at, "rssi": d.rssi,
             "uptime_s": d.uptime_s, "api_status": d.api_status, "data_version": d.data_version, "ip": d.ip,
-            "reported": rep, "online": device_online(db, d), "refresh_check": refresh, "created_at": d.created_at}
+            "reported": rep, "online": device_online(db, d), "refresh_check": refresh, "created_at": d.created_at,
+            "panel_profile": device_panel(d), "panel_registered": registered,
+            "panel_mismatch": bool(reported and reported != registered and reported != "UNKNOWN")}
 
 
 @router.get("/api/v1/devices")
@@ -103,11 +118,24 @@ def delete_device(did: int, db: Session = Depends(get_db), user: User = Depends(
     return {"ok": True}
 
 
+def device_panel(d: Device) -> str:
+    """Panel used for this device's pages: what its firmware reported (the real hardware), otherwise the
+    module chosen at registration, otherwise the 2.9in panel."""
+    reported = (d.reported or {}).get("panel_profile")
+    if reported in device_rules.modules():
+        return reported
+    return (d.display_config or {}).get("panel_profile") or device_rules.DEFAULT_PROFILE
+
+
 @router.get("/api/v1/devices/{did}/preview")
-def preview_device(did: int, db: Session = Depends(get_db), _: User = Depends(current_admin)):
+def preview_device(did: int, panel: str | None = Query(None, max_length=40), db: Session = Depends(get_db),
+                   _: User = Depends(current_admin)):
     d = get_or_404(db, Device, did, "Device")
     pf = db.get(Portfolio, d.portfolio_id) if d.portfolio_id else None
-    return dashboard_for(db, portfolio=pf, display=d.display_config or {}, device_uid=d.device_uid, device_name=d.name)
+    dash = dashboard_for(db, portfolio=pf, display=d.display_config or {}, device_uid=d.device_uid, device_name=d.name,
+                         panel_profile=panel or device_panel(d))
+    dash["panel_profile"] = device_rules.panel_spec(panel or device_panel(d))["profile"]
+    return dash
 
 
 # ----------------------------------------------------------------------------- API keys
@@ -217,10 +245,12 @@ def _device_for_key(db: Session, key: ApiKey) -> Device:
 @router.get("/api/v1/device/dashboard")
 def device_dashboard(request: Request, response: Response, since: str | None = Query(None, max_length=32),
                      rows: int | None = Query(None, ge=4, le=8), summary: bool | None = None,
-                     bench: bool | None = None, db: Session = Depends(get_db),
+                     bench: bool | None = None, panel: str | None = Query(None, max_length=40),
+                     db: Session = Depends(get_db),
                      key: ApiKey = Depends(require_device_key("device:dashboard"))):
     """Compact dashboard for the authenticated device. The server enforces the device's assigned
-    portfolio; the device may only narrow its display options (rows/pages)."""
+    portfolio; the device may only narrow its display options (rows/pages). `panel` is the firmware's
+    compiled panel profile and selects the page layout (2.9in portrait or 4.2in landscape)."""
     d = _device_for_key(db, key)
     display = {**DEFAULT_DISPLAY, **(d.display_config or {})}
     if rows is not None:
@@ -230,7 +260,10 @@ def device_dashboard(request: Request, response: Response, since: str | None = Q
     if bench is not None:
         display["show_benchmarks_page"] = bench
     pf = db.get(Portfolio, d.portfolio_id) if d.portfolio_id else None
-    dash = dashboard_for(db, portfolio=pf, display=display, device_uid=d.device_uid, device_name=d.name)
+    if panel and panel in device_rules.panel_profiles()["profiles"] and panel != (d.reported or {}).get("panel_profile"):
+        d.reported = {**(d.reported or {}), "panel_profile": panel}  # known before the first heartbeat
+    dash = dashboard_for(db, portfolio=pf, display=display, device_uid=d.device_uid, device_name=d.name,
+                         panel_profile=panel or device_panel(d))
     d.last_fetch_at = datetime.now(timezone.utc)
     d.ip = client_ip(request)
     db.commit()

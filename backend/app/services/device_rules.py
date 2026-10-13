@@ -28,8 +28,30 @@ def panel_profiles() -> dict:
     return load_shared("panel_profiles.json")
 
 
-def layout() -> dict:
-    return load_shared("layout.json")
+DEFAULT_PROFILE = "JD79667_GDEY029F51H"
+
+
+def layout(name: str = "layout.json") -> dict:
+    return load_shared(name)
+
+
+def modules() -> dict[str, str]:
+    """Real E-Paper modules (firmware-buildable panel profiles) -> short display name."""
+    return {k: p.get("module", p["label"]) for k, p in panel_profiles()["profiles"].items() if p.get("build")}
+
+
+def panel_spec(profile_name: str | None) -> dict:
+    """Layout and palette for a panel profile. Unknown profiles get the default 2.9in portrait panel."""
+    profiles = panel_profiles()["profiles"]
+    prof = profiles.get(profile_name or "") or profiles[DEFAULT_PROFILE]
+    return {"profile": profile_name if profile_name in profiles else DEFAULT_PROFILE,
+            "layout": layout(prof.get("layout", "layout.json")), "palette": prof.get("palette", "KWRY")}
+
+
+def roles(palette: str) -> dict:
+    """Semantic colours for a palette (shared/panel_profiles.json). KWRY reproduces the 2.9in 4-colour design."""
+    table = panel_profiles()["palette_roles"]
+    return table.get(palette, table["KWRY"])
 
 
 @dataclass

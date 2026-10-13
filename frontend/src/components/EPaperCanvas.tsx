@@ -1,23 +1,24 @@
 import { useEffect, useRef } from "react";
 import { renderPage } from "../sim/render";
-import { LAYOUT, Op } from "../sim/rules";
+import { Layout, LAYOUT, Op } from "../sim/rules";
 
-/** Exact 168x384 logical canvas; `scale` enlarges it with nearest-neighbour scaling only (no reflow). */
-export default function EPaperCanvas({ header, body, scale = 1, waiting = false, label }: {
-  header: Op[]; body: Op[] | null; scale?: number; waiting?: boolean; label?: string;
+/** Exact logical canvas (168x384 or 400x300); `scale` enlarges it with nearest-neighbour scaling only (no reflow). */
+export default function EPaperCanvas({ header, body, scale = 1, waiting = false, label, layout = LAYOUT }: {
+  header: Op[]; body: Op[] | null; scale?: number; waiting?: boolean; label?: string; layout?: Layout;
 }) {
   const ref = useRef<HTMLCanvasElement>(null);
+  const L = layout;
   useEffect(() => {
     const ctx = ref.current?.getContext("2d");
-    if (ctx) renderPage(ctx, header, body, waiting);
-  }, [header, body, waiting]);
+    if (ctx) renderPage(ctx, header, body, waiting, L);
+  }, [header, body, waiting, L]);
   return (
     <figure className="inline-block">
       <canvas
         ref={ref}
-        width={LAYOUT.width}
-        height={LAYOUT.height}
-        style={{ width: LAYOUT.width * scale, height: LAYOUT.height * scale, imageRendering: "pixelated" }}
+        width={L.width}
+        height={L.height}
+        style={{ width: L.width * scale, height: L.height * scale, imageRendering: "pixelated" }}
         className="border-4 border-stone-700 rounded-sm shadow"
       />
       {label && <figcaption className="text-xs text-stone-500 text-center mt-1">{label}</figcaption>}
@@ -25,13 +26,14 @@ export default function EPaperCanvas({ header, body, scale = 1, waiting = false,
   );
 }
 
-export function ColorLegend() {
+export function ColorLegend({ palette = "KWRY" }: { palette?: string }) {
+  const all: [string, string, string][] = [["K", "#1b1b1b", "Black"], ["W", "#f2f0e8", "White"], ["R", "#b3121b", "Red"], ["Y", "#e3b505", "Yellow"]];
   return (
     <div className="flex flex-wrap gap-3 text-xs items-center">
-      {[["#1b1b1b", "Black"], ["#f2f0e8", "White"], ["#b3121b", "Red"], ["#e3b505", "Yellow"]].map(([c, n]) => (
+      {all.filter(([k]) => palette.includes(k)).map(([, c, n]) => (
         <span key={n} className="flex items-center gap-1"><span className="w-3 h-3 border border-stone-400 inline-block" style={{ background: c }} />{n}</span>
       ))}
-      <span className="text-stone-500">Browser colours approximate the physical 4-colour pigments.</span>
+      <span className="text-stone-500">Browser colours approximate the physical pigments of this {palette.length}-colour panel.</span>
     </div>
   );
 }

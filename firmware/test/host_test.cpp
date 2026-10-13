@@ -127,8 +127,13 @@ static void testHeader(const std::string& root) {
     ls::formatAge(a["age_s"].as<long>(), buf, sizeof buf);
     CHECK(std::string(buf) == a["text"].as<std::string>(), "age " + a["text"].as<std::string>());
   }
+  int matched = 0;
   for (JsonObject c : doc["cases"].as<JsonArray>()) {
     std::string name = c["name"].as<std::string>();
+    // Each case targets one panel; this binary checks the cases for the panel it was compiled for.
+    std::string profile = c["profile"] | "JD79667_GDEY029F51H";
+    if (profile != LS_PANEL_PROFILE) continue;
+    ++matched;
     JsonObject s = c["status"];
     std::string dt = s["datetime"].isNull() ? "" : s["datetime"].as<std::string>();
     std::string lo = s["last_ok"].isNull() ? "" : s["last_ok"].as<std::string>();
@@ -157,16 +162,30 @@ static void testHeader(const std::string& root) {
       }
     }
   }
+  CHECK(matched > 0, std::string("header vectors exist for ") + LS_PANEL_PROFILE);
 }
 
 static void testFixture(const std::string& root) {
-  // The firmware must accept the shared fixture within its documented limits.
-  std::string raw = slurp(root + "/shared/fixtures/dashboard_3page.json");
+  // The firmware must accept the shared fixture for its panel within its documented limits.
+  std::string file = std::string(L_ID) == "168x384" ? "dashboard_3page.json"
+                                                     : std::string("dashboard_3page_") + LS_PANEL_BUILD + ".json";
+  std::string raw = slurp(root + "/shared/fixtures/" + file);
   CHECK((int)raw.size() <= L_LIM_MAX_RESPONSE_BYTES, "fixture within response limit");
   JsonDocument doc;
   CHECK(deserializeJson(doc, raw) == DeserializationError::Ok, "fixture parses");
+  CHECK(std::string(doc["layout"] | "") == L_ID, "fixture layout matches the compiled panel");
   JsonArray pages = doc["pages"];
   CHECK(pages.size() == 3, "fixture has 3 pages");
+  const char* pal = L_PALETTE;
+  for (JsonObject p : pages) {
+    JsonArray pageOps = p["ops"];
+    for (JsonArray op : pageOps) {
+      const char* col = op[0] == "H" ? op[4] | "?" : op[0] == "T" ? op[4] | "?" : op[5] | "?";
+      CHECK(strchr(pal, col[0]) != nullptr, std::string("fixture colour ") + col + " in palette " + pal);
+      int x = op[1], y = op[2];
+      CHECK(x >= 0 && x < L_WIDTH && y >= L_BODY_TOP && y < L_BODY_BOTTOM + 1, "fixture op inside body");
+    }
+  }
   for (JsonObject p : pages) CHECK(p["ops"].as<JsonArray>().size() <= L_LIM_MAX_OPS_PER_PAGE, "ops per page");
 }
 
@@ -176,6 +195,7 @@ int main(int argc, char** argv) {
   testRotation(root);
   testHeader(root);
   testFixture(root);
-  std::cout << checks - failures << "/" << checks << " checks passed" << std::endl;
+  std::cout << "[" << LS_PANEL_BUILD << " " << L_ID << " " << L_PALETTE << "] " << checks - failures << "/" << checks
+            << " checks passed" << std::endl;
   return failures ? 1 : 0;
 }

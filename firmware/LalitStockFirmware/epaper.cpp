@@ -1,25 +1,45 @@
-// Lalit Stock Application - E-Paper renderer (WeAct 2.9" 4C, GDEY029F51H / JD79667, portrait 168x384).
+// Lalit Stock Application - E-Paper renderer.
 // Owner: Lalit Nayyar <consult@lalit.cloud>. Not financial advice. No warranty.
 //
+// The panel is chosen at compile time (LS_PANEL, see shared_contract.h; flash.bat COMx <build>):
+//   290_4c  WeAct 2.9in 4-colour  GDEY029F51H / JD79667   portrait 168x384   (default, hardware-verified)
+//   420_bw  WeAct 4.2in B/W       GDEY042T81 / SSD1683    landscape 400x300
+//   420_bwr WeAct 4.2in B/W/R     GDEY042Z98 / SSD1683    landscape 400x300
+//   420_4c  WeAct 4.2in 4-colour  GDEY0420F51 / HX8717    landscape 400x300
 // Executes the server's page body draw-ops (docs/RENDER_CONTRACT.md) and draws the local
 // header/footer from ls::buildHeaderFooterOps so output matches the browser simulator.
-#include <GxEPD2_4C.h>
 #include <SPI.h>
 #include <esp_task_wdt.h>
 #include <time.h>
 
 #include "app_state.h"
 
+#if LS_PANEL == LS_PANEL_290_4C
+#include <GxEPD2_4C.h>
 static GxEPD2_4C<GxEPD2_290c_GDEY029F51H, GxEPD2_290c_GDEY029F51H::HEIGHT> display(
     GxEPD2_290c_GDEY029F51H(EPD_CS, EPD_DC, EPD_RST, EPD_BUSY));
+#elif LS_PANEL == LS_PANEL_420_BW
+#include <GxEPD2_BW.h>
+static GxEPD2_BW<GxEPD2_420_GDEY042T81, GxEPD2_420_GDEY042T81::HEIGHT> display(
+    GxEPD2_420_GDEY042T81(EPD_CS, EPD_DC, EPD_RST, EPD_BUSY));
+#elif LS_PANEL == LS_PANEL_420_BWR
+#include <GxEPD2_3C.h>
+// Half-height page buffer (2 x 7.5 KB): drawing runs in two passes, the panel still refreshes once.
+static GxEPD2_3C<GxEPD2_420c_GDEY042Z98, GxEPD2_420c_GDEY042Z98::HEIGHT / 2> display(
+    GxEPD2_420c_GDEY042Z98(EPD_CS, EPD_DC, EPD_RST, EPD_BUSY));
+#elif LS_PANEL == LS_PANEL_420_4C
+#include <GxEPD2_4C.h>
+static GxEPD2_4C<GxEPD2_420c_GDEY0420F51, GxEPD2_420c_GDEY0420F51::HEIGHT / 2> display(
+    GxEPD2_420c_GDEY0420F51(EPD_CS, EPD_DC, EPD_RST, EPD_BUSY));
+#endif
 
+// Colours outside the panel's palette never come from the server (palette-aware layout), but map them
+// safely anyway: red/yellow become black on a B/W panel, yellow becomes red on a B/W/R panel.
 static uint16_t color(char c) {
-  switch (c) {
-    case 'W': return GxEPD_WHITE;
-    case 'R': return GxEPD_RED;
-    case 'Y': return GxEPD_YELLOW;
-    default: return GxEPD_BLACK;
-  }
+  if (c == 'W') return GxEPD_WHITE;
+  if (c == 'Y' && strchr(L_PALETTE, 'Y')) return GxEPD_YELLOW;
+  if ((c == 'R' || c == 'Y') && strchr(L_PALETTE, 'R')) return GxEPD_RED;
+  return GxEPD_BLACK;
 }
 
 // Called continuously while the panel is BUSY (~21 s per full refresh): keep the watchdog fed and
@@ -34,7 +54,7 @@ void epdInit() {
   SPI.begin(EPD_SCK, -1, EPD_MOSI, EPD_CS);
   display.init(115200, true, 10, false);
   display.epd2.setBusyCallback(busyCallback);
-  display.setRotation(0);  // native portrait 168 x 384
+  display.setRotation(0);  // native orientation: 2.9in portrait 168 x 384, 4.2in landscape 400 x 300
   display.setTextWrap(false);
 }
 
@@ -145,8 +165,8 @@ void epdDrawDashboard() {
     for (int i = 0; i < nh; i++)
       drawOp(hdr[i].kind, hdr[i].x, hdr[i].y, hdr[i].w, hdr[i].h, hdr[i].size, hdr[i].color, hdr[i].text);
     if (ops.isNull()) {
-      drawOp('T', 3, 70, 0, 0, 1, 'K', "Waiting for data...");
-      drawOp('T', 3, 82, 0, 0, 1, 'K', "Check Wi-Fi / API settings");
+      drawOp('T', L_MARGIN_X, L_BODY_TOP + 16, 0, 0, 1, 'K', "Waiting for data...");
+      drawOp('T', L_MARGIN_X, L_BODY_TOP + 28, 0, 0, 1, 'K', "Check Wi-Fi / API settings");
     } else {
       int count = 0;
       for (JsonArrayConst op : ops) {
@@ -170,11 +190,11 @@ void epdDrawMessage(const char* title, const char* const* lines, int n) {
   display.firstPage();
   do {
     display.fillScreen(GxEPD_WHITE);
-    display.fillRect(0, 0, L_WIDTH, L_HDR_BAR_H, GxEPD_RED);
-    drawOp('T', L_MARGIN_X, L_HDR_TITLE_Y, 0, 0, 1, 'W', L_HDR_TITLE);
-    drawOp('T', L_MARGIN_X, 24, 0, 0, 1, 'R', title);
-    for (int i = 0; i < n; i++) drawOp('T', L_MARGIN_X, 40 + i * 12, 0, 0, 1, 'K', lines[i]);
-    drawOp('T', L_MARGIN_X, 351, 0, 0, 1, 'K', "Not financial advice.");
+    display.fillRect(0, 0, L_WIDTH, L_HDR_BAR_H, color(L_C_ACCENT));
+    drawOp('T', L_MARGIN_X, L_HDR_TITLE_Y, 0, 0, L_HDR_TITLE_SIZE, 'W', L_HDR_TITLE);
+    drawOp('T', L_MARGIN_X, L_HDR_BAR_H + 10, 0, 0, 1, L_C_ACCENT, title);
+    for (int i = 0; i < n; i++) drawOp('T', L_MARGIN_X, L_HDR_BAR_H + 26 + i * 12, 0, 0, 1, 'K', lines[i]);
+    drawOp('T', L_MARGIN_X, L_HEIGHT - 33, 0, 0, 1, 'K', "Not financial advice.");
   } while (display.nextPage());
   display.hibernate();
   g_ui.refreshCount++;

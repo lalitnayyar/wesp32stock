@@ -8,6 +8,7 @@
 #   esp32_flash SKETCH_DIR FQBN PORT LIB...
 # PORT may be empty: the first /dev/ttyUSB* or /dev/ttyACM* is used.
 # Set NO_MONITOR=1 to skip the serial monitor after a successful upload.
+# ESP32_BUILD_FLAGS (optional) is passed to the C++ compiler, e.g. -DLS_PANEL=LS_PANEL_420_BWR.
 # =============================================================================
 
 ESP32_INDEX_URL="https://espressif.github.io/arduino-esp32/package_esp32_index.json"
@@ -59,7 +60,9 @@ esp32_flash() {
 
   echo
   echo "Compiling $(basename "$sketch") for $fqbn..."
-  "$cli" compile --fqbn "$fqbn" "$sketch" || { echo "Compile failed." >&2; return 1; }
+  local props=()
+  [[ -n "${ESP32_BUILD_FLAGS:-}" ]] && props=(--build-property "compiler.cpp.extra_flags=$ESP32_BUILD_FLAGS")
+  "$cli" compile --fqbn "$fqbn" "${props[@]}" "$sketch" || { echo "Compile failed." >&2; return 1; }
 
   echo
   echo "Uploading to $port..."
