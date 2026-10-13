@@ -13,6 +13,7 @@
 #include <LittleFS.h>
 #include <Preferences.h>
 #include <WiFi.h>
+#include <esp_mac.h>
 #include <esp_random.h>
 #include <esp_task_wdt.h>
 
@@ -39,8 +40,10 @@ static void initWatchdog() {
 }
 
 static void makeIdentity() {
-  uint8_t mac[6];
-  WiFi.macAddress(mac);
+  // Read the factory MAC from eFuse: WiFi.macAddress() returns zeros until the Wi-Fi driver has started,
+  // which gave fresh boards the ID LS-000000 and the setup network LalitStock-Setup-0000.
+  uint8_t mac[6] = {0};
+  esp_read_mac(mac, ESP_MAC_WIFI_STA);
   char id[16];
   snprintf(id, sizeof id, "LS-%02X%02X%02X", mac[3], mac[4], mac[5]);
   g_deviceId = id;
@@ -48,6 +51,8 @@ static void makeIdentity() {
   const char* alphabet = "abcdefghjkmnpqrstuvwxyz23456789";  // no look-alike characters
   for (int i = 0; i < 12; i++) g_ui.setupPass[i] = alphabet[esp_random() % 31];
   g_ui.setupPass[12] = '\0';
+  Serial.printf("[id] device %s (MAC %02X:%02X:%02X:%02X:%02X:%02X)\n", g_deviceId.c_str(), mac[0], mac[1], mac[2],
+                mac[3], mac[4], mac[5]);
 }
 
 static bool consumeForceSetupFlag() {
