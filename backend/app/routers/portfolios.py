@@ -163,9 +163,9 @@ class TransactionIn(BaseModel):
 def tx_out(t: Transaction, tickers: dict[int, str] | None = None) -> dict:
     return {"id": t.id, "portfolio_id": t.portfolio_id, "stock_id": t.stock_id,
             "ticker": (tickers or {}).get(t.stock_id) if t.stock_id else None, "broker_id": t.broker_id,
-            "type": t.type, "trade_date": t.trade_date.isoformat(), "quantity": str(t.quantity.normalize()),
-            "price": str(t.price.normalize()), "fees": str(t.fees.normalize()), "amount": str(t.amount.normalize()),
-            "split_ratio": str(t.split_ratio.normalize()) if t.split_ratio is not None else None,
+            "type": t.type, "trade_date": t.trade_date.isoformat(), "quantity": analytics.plain(t.quantity),
+            "price": analytics.plain(t.price), "fees": analytics.plain(t.fees), "amount": analytics.plain(t.amount),
+            "split_ratio": analytics.plain(t.split_ratio) if t.split_ratio is not None else None,
             "currency": t.currency, "notes": t.notes, "created_by": t.created_by, "created_at": t.created_at}
 
 

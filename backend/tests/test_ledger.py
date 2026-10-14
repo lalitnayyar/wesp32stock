@@ -109,3 +109,15 @@ def test_date_order_not_insert_order():
         Tx(1, "BUY", d(1), quantity=D("1"), price=D("5")),
     ])
     assert res.positions[1].realized_pl == D("5")
+
+
+def test_plain_decimal_never_scientific():
+    from decimal import Decimal
+
+    from app.services.analytics import plain
+
+    assert plain(Decimal("50.0000")) == "50"
+    assert plain(Decimal("100")) == "100"
+    assert plain(Decimal("64.3000")) == "64.3"
+    assert plain(Decimal("0.000100")) == "0.0001"
+    assert plain(Decimal("0")) == "0"

@@ -26,6 +26,11 @@ def s(v: Decimal | None, places: int = 2) -> str | None:
     return str(v.quantize(Decimal(1).scaleb(-places), rounding=ROUND_HALF_UP))
 
 
+def plain(v: Decimal) -> str:
+    """Trailing zeros stripped, never scientific notation (Decimal("50").normalize() is 5E+1)."""
+    return format(v.normalize(), "f")
+
+
 def fx_rate(db: Session, from_ccy: str, to_ccy: str) -> tuple[Decimal | None, str]:
     """Return (rate, source). rate converts an amount in from_ccy into to_ccy."""
     from_ccy, to_ccy = (from_ccy or "").upper(), (to_ccy or "").upper()
@@ -88,7 +93,7 @@ def portfolio_summary(db: Session, portfolio: Portfolio, now: datetime | None = 
         rows.append({
             "stock_id": sid, "ticker": st.ticker, "company": st.company, "currency": st.currency,
             "sector": st.sector or "Unclassified", "market": st.market,
-            "quantity": str(pos.quantity.normalize()), "avg_cost": s(pos.avg_cost, 4), "cost_basis": s(pos.cost_basis),
+            "quantity": plain(pos.quantity), "avg_cost": s(pos.avg_cost, 4), "cost_basis": s(pos.cost_basis),
             "price": s(price, 4) if price is not None else None, "market_value": s(mv),
             "market_value_base": s(mv_base), "unrealized_pl": s(unreal), "unrealized_pct": s(unreal_pct),
             "day_change": s(q.change, 4) if q and q.change is not None else None,
